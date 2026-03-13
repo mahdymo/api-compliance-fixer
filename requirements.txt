@@ -1,0 +1,5 @@
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+stripe==11.2.0
+python-multipart==0.0.18
+pyyaml==6.0.2

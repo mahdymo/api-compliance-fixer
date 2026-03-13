@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Compliance Fixer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Epilogue:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   TOKENS
+═══════════════════════════════════════════ */
+:root {
+  --bg:        #070b10;
+  --surface:   #0d1420;
+  --surface2:  #121c2c;
+  --surface3:  #172236;
+  --border:    #1a2840;
+  --border2:   #223352;
+  --text:      #b0c4d8;
+  --text-dim:  #4a6480;
+  --text-hi:   #e2eef8;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Epilogue', sans-serif;
+
+  /* Framework accent colours */
+  --sama:   #00c8ff;
+  --pci:    #ffaa00;
+  --nis2:   #4488ff;
+  --gdpr:   #00d490;
+  --dora:   #ff4d7a;
+
+  --critical: #ff4d4d;
+  --high:     #ff9500;
+  --medium:   #ffd000;
+  --info:     #4a6480;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Background grid ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background:
+    linear-gradient(rgba(0,200,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,200,255,.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════
+   LAYOUT SHELL
+═══════════════════════════════════════════ */
+#app {
+  position: relative; z-index: 1;
+  display: grid;
+  grid-template-rows: 56px 1fr;
+  min-height: 100vh;
+}
+
+/* ── Header ── */
+header {
+  display: flex; align-items: center;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(7,11,16,.85);
+  backdrop-filter: blur(12px);
+  position: sticky; top: 0; z-index: 50;
+  gap: 16px;
+}
+
+.h-logo {
+  display: flex; align-items: center; gap: 9px;
+  font-family: var(--mono); font-size: 14px; font-weight: 700;
+  color: var(--text-hi); letter-spacing: .03em;
+  flex-shrink: 0;
+}
+.h-logo-mark {
+  width: 28px; height: 28px;
+  background: conic-gradient(var(--sama), var(--nis2), var(--gdpr), var(--sama));
+  border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: #070b10; font-weight: 800;
+}
+.h-sep { flex: 1; }
+.h-pill {
+  font-family: var(--mono); font-size: 10px;
+  padding: 3px 9px; border-radius: 20px;
+  border: 1px solid var(--border2);
+  color: var(--text-dim); letter-spacing: .06em;
+}
+
+/* ── Main two-column layout ── */
+main {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  height: calc(100vh - 56px);
+  overflow: hidden;
+}
+
+/* ── Left panel ── */
+.panel-left {
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+  background: var(--surface);
+}
+
+.panel-section {
+  padding: 24px 24px 0;
+}
+
+.panel-section + .panel-section {
+  border-top: 1px solid var(--border);
+  margin-top: 24px;
+  padding-top: 24px;
+}
+
+.panel-label {
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-dim); margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.panel-label::after {
+  content: ''; flex: 1; height: 1px;
+  background: var(--border);
+}
+
+/* ── Drop zone ── */
+#drop-zone {
+  border: 1.5px dashed var(--border2);
+  border-radius: 10px; padding: 28px 20px;
+  text-align: center; cursor: pointer;
+  transition: all .2s; position: relative;
+  background: var(--surface2);
+  overflow: hidden;
+}
+#drop-zone::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 60% at 50% 100%, rgba(0,200,255,.07), transparent);
+  opacity: 0; transition: opacity .3s;
+}
+#drop-zone:hover, #drop-zone.over {
+  border-color: var(--sama);
+  box-shadow: 0 0 0 1px var(--sama), 0 0 24px rgba(0,200,255,.15);
+}
+#drop-zone:hover::after, #drop-zone.over::after { opacity: 1; }
+
+.dz-icon { font-size: 32px; margin-bottom: 10px; }
+.dz-title {
+  font-family: var(--mono); font-size: 13px; font-weight: 600;
+  color: var(--text-hi); margin-bottom: 5px;
+}
+.dz-sub { font-size: 12px; color: var(--text-dim); }
+#file-input { display: none; }
+
+.file-chip {
+  display: none; margin-top: 12px;
+  background: rgba(0,200,255,.08);
+  border: 1px solid rgba(0,200,255,.2);
+  border-radius: 6px; padding: 8px 12px;
+  font-family: var(--mono); font-size: 11px;
+  color: var(--sama); align-items: center; gap: 8px;
+}
+.file-chip.show { display: flex; }
+.file-chip-remove {
+  margin-left: auto; cursor: pointer; opacity: .6;
+}
+.file-chip-remove:hover { opacity: 1; }
+
+/* ── Framework selector ── */
+.fw-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-bottom: 24px;
+}
+
+.fw-card {
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all .18s;
+  position: relative;
+  user-select: none;
+  background: var(--surface2);
+}
+
+.fw-card:hover { border-color: var(--border2); }
+
+.fw-card.selected {
+  border-color: var(--fw-color);
+  background: color-mix(in srgb, var(--fw-color) 8%, var(--surface2));
+  box-shadow: 0 0 0 1px var(--fw-color), inset 0 0 20px color-mix(in srgb, var(--fw-color) 5%, transparent);
+}
+
+.fw-check {
+  position: absolute; top: 8px; right: 8px;
+  width: 16px; height: 16px;
+  border: 1.5px solid var(--border2);
+  border-radius: 4px;
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: transparent;
+  transition: all .15s;
+}
+.fw-card.selected .fw-check {
+  border-color: var(--fw-color);
+  background: var(--fw-color);
+  color: #070b10;
+}
+
+.fw-icon { font-size: 20px; margin-bottom: 6px; }
+.fw-name {
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  color: var(--text-hi); letter-spacing: .04em;
+}
+.fw-region {
+  font-size: 10px; color: var(--text-dim); margin-top: 2px;
+}
+.fw-rules {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--fw-color, var(--text-dim));
+  margin-top: 6px;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.fw-card.selected .fw-rules { opacity: 1; }
+
+/* ── Analyse button ── */
+.analyse-btn {
+  width: 100%; padding: 13px;
+  background: var(--sama); color: #070b10;
+  border: none; border-radius: 9px;
+  font-family: var(--mono); font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all .2s;
+  letter-spacing: .03em;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+.analyse-btn:hover:not(:disabled) {
+  background: #33d6ff;
+  box-shadow: 0 0 24px rgba(0,200,255,.3);
+}
+.analyse-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+.left-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  font-size: 11px; color: var(--text-dim);
+  font-family: var(--mono);
+  margin-top: auto;
+}
+
+/* ═══════════════════════════════════════════
+   RIGHT PANEL — RESULTS
+═══════════════════════════════════════════ */
+.panel-right {
+  overflow-y: auto;
+  padding: 32px;
+  display: flex; flex-direction: column; gap: 24px;
+}
+
+/* ── Empty state ── */
+#empty-state {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100%; gap: 16px; color: var(--text-dim);
+  text-align: center;
+}
+.empty-icon { font-size: 56px; opacity: .3; }
+.empty-title {
+  font-family: var(--mono); font-size: 15px; font-weight: 600;
+  color: var(--text-dim);
+}
+.empty-sub { font-size: 13px; max-width: 340px; line-height: 1.6; }
+
+/* ── Loading state ── */
+#loading-state {
+  display: none; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100%; gap: 20px;
+}
+.loader-ring {
+  width: 52px; height: 52px;
+  border: 3px solid var(--border2);
+  border-top-color: var(--sama);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loader-label {
+  font-family: var(--mono); font-size: 13px;
+  color: var(--text-dim); letter-spacing: .06em;
+}
+
+/* ── Results state ── */
+#results-state { display: none; flex-direction: column; gap: 24px; }
+
+/* ── Summary cards row ── */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+.s-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  text-align: center;
+}
+.s-num {
+  font-family: var(--mono); font-size: 26px; font-weight: 700;
+  color: var(--text-hi); display: block; line-height: 1;
+}
+.s-label {
+  font-size: 11px; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: .06em;
+  margin-top: 5px;
+}
+
+/* ── Severity bar ── */
+.sev-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+.sev-bar-title {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--text-dim); letter-spacing: .08em;
+  text-transform: uppercase; margin-bottom: 12px;
+}
+.sev-row {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 8px;
+}
+.sev-row:last-child { margin-bottom: 0; }
+.sev-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.sev-name {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--text-dim); width: 64px; flex-shrink: 0;
+}
+.sev-track {
+  flex: 1; height: 6px;
+  background: var(--border);
+  border-radius: 3px; overflow: hidden;
+}
+.sev-fill {
+  height: 100%; border-radius: 3px;
+  transition: width .6s cubic-bezier(.4,0,.2,1);
+}
+.sev-count {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--text-dim); width: 24px; text-align: right; flex-shrink: 0;
+}
+
+/* ── Framework summary pills ── */
+.fw-summary-row {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.fw-pill {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: var(--mono); font-size: 11px;
+  color: var(--text);
+}
+.fw-pill-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+}
+.fw-pill-count {
+  font-size: 11px; color: var(--text-dim);
+  margin-left: 4px;
+}
+
+/* ── Change list section ── */
+.changes-section {}
+.changes-header {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.changes-title {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase;
+}
+.filter-tabs {
+  display: flex; gap: 4px;
+}
+.filter-tab {
+  font-family: var(--mono); font-size: 10px;
+  padding: 4px 10px; border-radius: 5px;
+  cursor: pointer; border: 1px solid var(--border);
+  color: var(--text-dim); background: transparent;
+  transition: all .15s; letter-spacing: .04em;
+}
+.filter-tab:hover { border-color: var(--border2); color: var(--text); }
+.filter-tab.active {
+  background: var(--border2); color: var(--text-hi);
+  border-color: var(--border2);
+}
+
+.change-list { display: flex; flex-direction: column; gap: 6px; }
+
+.change-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+  transition: border-color .15s;
+}
+.change-card:hover { border-color: var(--border2); }
+
+.change-header {
+  display: flex; align-items: center;
+  padding: 11px 14px; gap: 10px;
+  cursor: pointer;
+}
+
+.change-sev-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+
+.change-rule-id {
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  padding: 2px 7px; border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.change-title {
+  font-size: 13px; font-weight: 500;
+  color: var(--text-hi); flex: 1;
+}
+
+.change-count {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--text-dim); flex-shrink: 0;
+}
+
+.change-chevron {
+  color: var(--text-dim); font-size: 11px;
+  transition: transform .2s;
+  flex-shrink: 0;
+}
+.change-card.open .change-chevron { transform: rotate(180deg); }
+
+.change-ref {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--text-dim); padding: 0 14px 10px;
+  letter-spacing: .04em;
+}
+
+.change-body {
+  display: none; border-top: 1px solid var(--border);
+  padding: 10px 14px;
+}
+.change-card.open .change-body { display: block; }
+
+.change-req-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.change-req-item:last-child { border-bottom: none; }
+.change-req-name {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--sama); flex-shrink: 0; max-width: 200px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.change-req-detail { color: var(--text-dim); line-height: 1.5; }
+
+/* ── Pay CTA ── */
+#cta-row {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+}
+.cta-info { display: flex; flex-direction: column; gap: 4px; }
+.cta-title {
+  font-family: var(--mono); font-size: 14px; font-weight: 700;
+  color: var(--text-hi);
+}
+.cta-sub { font-size: 12px; color: var(--text-dim); }
+#pay-btn {
+  background: var(--sama); color: #070b10;
+  border: none; border-radius: 8px;
+  padding: 12px 28px;
+  font-family: var(--mono); font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all .2s;
+  display: flex; align-items: center; gap: 8px;
+  white-space: nowrap; flex-shrink: 0;
+}
+#pay-btn:hover:not(:disabled) {
+  background: #33d6ff;
+  box-shadow: 0 0 20px rgba(0,200,255,.25);
+}
+#pay-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Download state ── */
+#download-state {
+  display: none;
+  background: rgba(0,212,144,.06);
+  border: 1px solid rgba(0,212,144,.2);
+  border-radius: 12px;
+  padding: 32px;
+  text-align: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.dl-icon { font-size: 40px; }
+.dl-title {
+  font-family: var(--mono); font-size: 18px; font-weight: 700;
+  color: var(--gdpr);
+}
+.dl-sub { font-size: 13px; color: var(--text-dim); max-width: 380px; line-height: 1.6; }
+#dl-btn {
+  background: var(--gdpr); color: #070b10;
+  border: none; border-radius: 8px;
+  padding: 12px 28px;
+  font-family: var(--mono); font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all .2s;
+  display: flex; align-items: center; gap: 8px;
+}
+#dl-btn:hover { box-shadow: 0 0 20px rgba(0,212,144,.3); }
+#dl-btn:disabled { opacity: .5; }
+
+/* ── Error ── */
+.error-toast {
+  background: rgba(255,77,77,.06);
+  border: 1px solid rgba(255,77,77,.2);
+  border-radius: 8px; padding: 11px 14px;
+  font-family: var(--mono); font-size: 12px;
+  color: var(--critical); display: none;
+}
+
+/* ── Utility ── */
+.spin { animation: spin .7s linear infinite; display: inline-block; }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; overflow: visible; }
+  .panel-left { overflow-y: visible; }
+  .panel-right { height: auto; overflow-y: visible; }
+  #empty-state, #loading-state { height: 300px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ── Header ── -->
+<header>
+  <div class="h-logo">
+    <div class="h-logo-mark">⚡</div>
+    API Compliance Fixer
+  </div>
+  <div class="h-sep"></div>
+  <div class="h-pill">v2.0</div>
+</header>
+
+<!-- ── Main ── -->
+<main>
+
+  <!-- LEFT PANEL -->
+  <div class="panel-left">
+
+    <!-- Upload -->
+    <div class="panel-section" style="padding-top:24px">
+      <div class="panel-label">01 — Upload</div>
+      <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <div class="dz-icon">📁</div>
+        <div class="dz-title" id="dz-title">Drop your API file here</div>
+        <div class="dz-sub">Postman v2/v2.1 · OpenAPI 3.x · .json .yaml .yml</div>
+      </div>
+      <div class="file-chip" id="file-chip">
+        <span id="file-chip-name"></span>
+        <span id="file-chip-fmt" style="opacity:.6;font-size:10px;margin-left:4px"></span>
+        <span class="file-chip-remove" onclick="clearFile()">✕</span>
+      </div>
+      <input type="file" id="file-input" accept=".json,.yaml,.yml">
+    </div>
+
+    <!-- Framework selector -->
+    <div class="panel-section">
+      <div class="panel-label">02 — Select Frameworks</div>
+      <div class="fw-grid" id="fw-grid">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <!-- Analyse -->
+    <div class="panel-section" style="padding-bottom:24px">
+      <div id="error-toast" class="error-toast"></div>
+      <button class="analyse-btn" id="analyse-btn" onclick="runAnalysis()" disabled>
+        Analyse & Preview
+      </button>
+    </div>
+
+    <div class="left-footer">
+      Files processed in memory · never stored
+    </div>
+  </div><!-- end panel-left -->
+
+  <!-- RIGHT PANEL -->
+  <div class="panel-right">
+
+    <!-- Empty state -->
+    <div id="empty-state">
+      <div class="empty-icon">🛡</div>
+      <div class="empty-title">Select a file and frameworks</div>
+      <div class="empty-sub">Upload a Postman collection or OpenAPI spec, choose one or more compliance frameworks, then click Analyse to see exactly what will be fixed.</div>
+    </div>
+
+    <!-- Loading state -->
+    <div id="loading-state">
+      <div class="loader-ring"></div>
+      <div class="loader-label" id="loader-label">ANALYSING…</div>
+    </div>
+
+    <!-- Results -->
+    <div id="results-state">
+
+      <!-- Summary cards -->
+      <div class="summary-cards" id="summary-cards"></div>
+
+      <!-- Severity bar -->
+      <div class="sev-bar" id="sev-bar"></div>
+
+      <!-- Framework pills -->
+      <div class="fw-summary-row" id="fw-pills"></div>
+
+      <!-- Change list -->
+      <div class="changes-section">
+        <div class="changes-header">
+          <div class="changes-title">Changes by Rule</div>
+          <div class="filter-tabs" id="filter-tabs"></div>
+        </div>
+        <div id="error-banner" class="error-toast" style="margin-bottom:10px"></div>
+        <div class="change-list" id="change-list"></div>
+      </div>
+
+      <!-- Pay CTA -->
+      <div id="cta-row">
+        <div class="cta-info">
+          <div class="cta-title" id="cta-title">Ready to apply fixes</div>
+          <div class="cta-sub" id="cta-sub">Review the changes above, then pay to download your compliant file.</div>
+        </div>
+        <button id="pay-btn" onclick="startPayment()">
+          Fix &amp; Download — $29
+        </button>
+      </div>
+
+    </div><!-- end results-state -->
+
+    <!-- Download state -->
+    <div id="download-state">
+      <div class="dl-icon">✅</div>
+      <div class="dl-title">Payment confirmed</div>
+      <div class="dl-sub">Your compliant file and changelog are ready. This link is one-time use — files are not stored on our servers.</div>
+      <button id="dl-btn" onclick="downloadZip()">⬇ Download ZIP</button>
+    </div>
+
+  </div><!-- end panel-right -->
+
+</main>
+</div><!-- end app -->
+
+<script>
+/* ══════════════════════════════════════════
+   STATE
+══════════════════════════════════════════ */
+const state = {
+  file: null,
+  filename: '',
+  selectedFrameworks: new Set(['SAMA']),
+  uploadToken: null,
+  downloadToken: null,
+  changelog: null,
+  activeFilter: 'all',
+};
+
+const FRAMEWORKS = {
+  SAMA:   { name: 'SAMA',     icon: '🇸🇦', region: 'KSA',     color: '#00c8ff' },
+  PCIDSS: { name: 'PCI-DSS',  icon: '💳', region: 'Global',   color: '#ffaa00' },
+  NIS2:   { name: 'NIS2',     icon: '🇪🇺', region: 'EU/EEA',  color: '#4488ff' },
+  GDPR:   { name: 'GDPR',     icon: '🔒', region: 'EU/EEA',   color: '#00d490' },
+  DORA:   { name: 'DORA',     icon: '🏦', region: 'EU/EEA',   color: '#ff4d7a' },
+};
+
+const SEV_ORDER  = ['critical','high','medium','info'];
+const SEV_COLORS = { critical:'#ff4d4d', high:'#ff9500', medium:'#ffd000', info:'#4a6480' };
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  buildFrameworkGrid();
+  setupDrop();
+  document.getElementById('file-input').addEventListener('change', e => {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+  });
+  // Check for post-payment redirect
+  const params = new URLSearchParams(location.search);
+  if (params.get('success') === '1' && params.get('download_token')) {
+    state.downloadToken = params.get('download_token');
+    history.replaceState({}, '', '/');
+    showDownload();
+  }
+});
+
+/* ══════════════════════════════════════════
+   FRAMEWORK GRID
+══════════════════════════════════════════ */
+function buildFrameworkGrid() {
+  const grid = document.getElementById('fw-grid');
+  grid.innerHTML = '';
+  Object.entries(FRAMEWORKS).forEach(([id, fw]) => {
+    const selected = state.selectedFrameworks.has(id);
+    const card = document.createElement('div');
+    card.className = 'fw-card' + (selected ? ' selected' : '');
+    card.style.setProperty('--fw-color', fw.color);
+    card.dataset.fw = id;
+    card.innerHTML = `
+      <div class="fw-check">✓</div>
+      <div class="fw-icon">${fw.icon}</div>
+      <div class="fw-name">${fw.name}</div>
+      <div class="fw-region">${fw.region}</div>
+      <div class="fw-rules" id="fw-rules-${id}"></div>
+    `;
+    card.addEventListener('click', () => toggleFw(id, card, fw.color));
+    grid.appendChild(card);
+  });
+  // Load rule counts from API
+  fetch('/api/frameworks').then(r => r.json()).then(data => {
+    data.forEach(fw => {
+      const el = document.getElementById(`fw-rules-${fw.id}`);
+      if (el) el.textContent = `${fw.rule_count} rules`;
+    });
+  }).catch(() => {});
+}
+
+function toggleFw(id, card, color) {
+  if (state.selectedFrameworks.has(id)) {
+    if (state.selectedFrameworks.size === 1) return; // keep at least one
+    state.selectedFrameworks.delete(id);
+    card.classList.remove('selected');
+  } else {
+    state.selectedFrameworks.add(id);
+    card.classList.add('selected');
+  }
+  updateAnalyseBtn();
+}
+
+/* ══════════════════════════════════════════
+   FILE HANDLING
+══════════════════════════════════════════ */
+function setupDrop() {
+  const zone = document.getElementById('drop-zone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('over');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+}
+
+function handleFile(file) {
+  const ok = file.name.endsWith('.json') || file.name.endsWith('.yaml') || file.name.endsWith('.yml');
+  if (!ok) { showError('Only .json, .yaml, or .yml files are accepted.'); return; }
+  state.file = file;
+  state.filename = file.name;
+  document.getElementById('file-chip-name').textContent = file.name;
+  const fmt = file.name.endsWith('.json') ? 'JSON' : 'YAML';
+  document.getElementById('file-chip-fmt').textContent = `· ${fmt} · ${(file.size/1024).toFixed(1)} KB`;
+  document.getElementById('file-chip').classList.add('show');
+  document.getElementById('dz-title').textContent = 'File loaded — ready to analyse';
+  updateAnalyseBtn();
+  hideError();
+}
+
+function clearFile() {
+  state.file = null; state.filename = '';
+  document.getElementById('file-chip').classList.remove('show');
+  document.getElementById('dz-title').textContent = 'Drop your API file here';
+  document.getElementById('file-input').value = '';
+  updateAnalyseBtn();
+}
+
+function updateAnalyseBtn() {
+  const btn = document.getElementById('analyse-btn');
+  btn.disabled = !(state.file && state.selectedFrameworks.size > 0);
+}
+
+/* ══════════════════════════════════════════
+   ANALYSIS
+══════════════════════════════════════════ */
+async function runAnalysis() {
+  if (!state.file) return;
+  hideError();
+  showState('loading');
+  setLoaderLabel('UPLOADING…');
+
+  const formData = new FormData();
+  formData.append('file', state.file);
+  formData.append('frameworks', [...state.selectedFrameworks].join(','));
+
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) { showError(data.detail || 'Upload failed.'); showState('empty'); return; }
+
+    state.uploadToken = data.upload_token;
+    state.changelog = data.changelog_preview;
+    renderResults(data.changelog_preview);
+    showState('results');
+  } catch (err) {
+    showError('Network error — is the server running?');
+    showState('empty');
+  }
+}
+
+/* ══════════════════════════════════════════
+   RENDER RESULTS
+══════════════════════════════════════════ */
+function renderResults(cl) {
+  // Summary cards
+  const sev = cl.severity_summary || {};
+  const cards = document.getElementById('summary-cards');
+  cards.innerHTML = `
+    <div class="s-card"><span class="s-num">${cl.total_changes}</span><div class="s-label">Total Changes</div></div>
+    <div class="s-card"><span class="s-num" style="color:var(--critical)">${sev.critical||0}</span><div class="s-label">Critical</div></div>
+    <div class="s-card"><span class="s-num" style="color:var(--high)">${sev.high||0}</span><div class="s-label">High</div></div>
+    <div class="s-card"><span class="s-num">${cl.changes_by_rule?.length||0}</span><div class="s-label">Rules Applied</div></div>
+    <div class="s-card"><span class="s-num">${cl.input_format==='postman'?'📮':'📄'}</span><div class="s-label">${cl.input_format==='postman'?'Postman':'OpenAPI'}</div></div>
+  `;
+
+  // Severity bar
+  const maxVal = Math.max(1, ...SEV_ORDER.map(s => sev[s]||0));
+  const sevBar = document.getElementById('sev-bar');
+  sevBar.innerHTML = `<div class="sev-bar-title">Severity Distribution</div>` +
+    SEV_ORDER.map(s => `
+      <div class="sev-row">
+        <div class="sev-dot" style="background:${SEV_COLORS[s]}"></div>
+        <div class="sev-name">${s}</div>
+        <div class="sev-track"><div class="sev-fill" style="width:${((sev[s]||0)/maxVal*100).toFixed(1)}%;background:${SEV_COLORS[s]}"></div></div>
+        <div class="sev-count">${sev[s]||0}</div>
+      </div>`).join('');
+
+  // Framework pills
+  const pills = document.getElementById('fw-pills');
+  pills.innerHTML = (cl.frameworks_detail||[]).map(fw => {
+    const meta = FRAMEWORKS[fw.id] || {};
+    return `<div class="fw-pill">
+      <div class="fw-pill-dot" style="background:${meta.color||'#888'}"></div>
+      ${fw.name}
+      <span class="fw-pill-count">${fw.changes_made} changes</span>
+    </div>`;
+  }).join('');
+
+  // Build filter tabs
+  const allFws = [...new Set((cl.changes_by_rule||[]).map(r => r.rule_id.split('-')[0]))];
+  const tabs = document.getElementById('filter-tabs');
+  tabs.innerHTML = `<button class="filter-tab active" onclick="filterChanges('all',this)">All</button>` +
+    allFws.map(fw => `<button class="filter-tab" onclick="filterChanges('${fw}',this)">${fw}</button>`).join('');
+
+  state.activeFilter = 'all';
+  renderChangeList(cl.changes_by_rule || []);
+
+  // CTA
+  const fwLabels = [...state.selectedFrameworks].map(f => FRAMEWORKS[f]?.name || f).join(' + ');
+  document.getElementById('cta-title').textContent = `${cl.total_changes} fixes ready — ${fwLabels}`;
+  document.getElementById('cta-sub').textContent =
+    `${cl.collection_name} · ${cl.input_format} format · $29 one-time`;
+}
+
+function filterChanges(fw, btn) {
+  state.activeFilter = fw;
+  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  const rules = state.changelog?.changes_by_rule || [];
+  const filtered = fw === 'all' ? rules : rules.filter(r => r.rule_id.startsWith(fw));
+  renderChangeList(filtered);
+}
+
+function renderChangeList(rules) {
+  const list = document.getElementById('change-list');
+  if (!rules.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--text-dim);font-size:13px;padding:32px">No changes for selected filter.</div>';
+    return;
+  }
+  list.innerHTML = rules.map((rule, i) => {
+    const fwId = rule.rule_id.split('-')[0];
+    const color = FRAMEWORKS[fwId]?.color || '#888';
+    const sevColor = SEV_COLORS[rule.severity] || '#888';
+    const count = rule.affected_requests?.length || 0;
+    return `
+    <div class="change-card" id="cc-${i}">
+      <div class="change-header" onclick="toggleCard('cc-${i}')">
+        <div class="change-sev-dot" style="background:${sevColor}"></div>
+        <div class="change-rule-id" style="color:${color};background:color-mix(in srgb,${color} 12%,transparent);border:1px solid color-mix(in srgb,${color} 25%,transparent)">${rule.rule_id}</div>
+        <div class="change-title">${rule.rule_title}</div>
+        <div class="change-count">${count} req</div>
+        <div class="change-chevron">▾</div>
+      </div>
+      <div class="change-ref">${rule.reference}</div>
+      <div class="change-body">
+        ${(rule.affected_requests||[]).map(r => `
+          <div class="change-req-item">
+            <div class="change-req-name" title="${r.request}">${r.request}</div>
+            <div class="change-req-detail">${r.detail}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCard(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+/* ══════════════════════════════════════════
+   PAYMENT
+══════════════════════════════════════════ */
+async function startPayment() {
+  if (!state.uploadToken) return;
+  const btn = document.getElementById('pay-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> Redirecting to Stripe…';
+
+  try {
+    const res = await fetch(`/api/checkout/${state.uploadToken}`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) { showBannerError(data.detail || 'Could not create session.'); btn.disabled=false; btn.innerHTML='Fix & Download — $29'; return; }
+    window.location.href = data.checkout_url;
+  } catch (err) {
+    showBannerError('Payment service unavailable.');
+    btn.disabled=false; btn.innerHTML='Fix & Download — $29';
+  }
+}
+
+/* ══════════════════════════════════════════
+   DOWNLOAD
+══════════════════════════════════════════ */
+function showDownload() {
+  showState('download');
+  setTimeout(downloadZip, 900);
+}
+
+async function downloadZip() {
+  if (!state.downloadToken) return;
+  const btn = document.getElementById('dl-btn');
+  btn.disabled = true; btn.textContent = '⟳ Preparing…';
+  try {
+    const res = await fetch(`/api/download/${state.downloadToken}`);
+    if (!res.ok) { showBannerError('Download link expired or already used.'); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'compliant_api.zip';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    state.downloadToken = null;
+    btn.textContent = '✓ Downloaded';
+  } catch {
+    showBannerError('Download failed.');
+    btn.disabled=false; btn.textContent='⬇ Download ZIP';
+  }
+}
+
+/* ══════════════════════════════════════════
+   UI HELPERS
+══════════════════════════════════════════ */
+function showState(s) {
+  ['empty-state','loading-state','results-state','download-state'].forEach(id => {
+    const el = document.getElementById(id);
+    if (id === 'results-state' || id === 'download-state') {
+      el.style.display = (id === s+'-state') ? 'flex' : 'none';
+    } else {
+      el.style.display = (id === s+'-state') ? 'flex' : 'none';
+    }
+  });
+}
+
+function setLoaderLabel(t) {
+  document.getElementById('loader-label').textContent = t;
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-toast');
+  el.textContent = '⚠ ' + msg; el.style.display = 'block';
+}
+function hideError() {
+  document.getElementById('error-toast').style.display = 'none';
+}
+function showBannerError(msg) {
+  const el = document.getElementById('error-banner');
+  el.textContent = '⚠ ' + msg; el.style.display = 'block';
+}
+</script>
+</body>
+</html>
