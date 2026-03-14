@@ -114,32 +114,45 @@ def _redact_changelog(changelog: dict, preview_rules: int = 2) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def _submit_to_gform(data: dict) -> None:
-    """Fire-and-forget. Never raises — form failure must not block the user."""
+    """Fire-and-forget. Logs every step so Railway logs show exactly what happened."""
     if not GFORM_URL:
-        print(f"[GFORM] Not configured. Submission: {json.dumps(data)}")
+        print(f"[GFORM] GFORM_URL not set — skipping. Data: {json.dumps(data)}")
         return
+
+    payload = {
+        GFORM_NAME:       data.get("name", ""),
+        GFORM_EMAIL:      data.get("email", ""),
+        GFORM_COMPANY:    data.get("company", ""),
+        GFORM_ROLE:       data.get("role", ""),
+        GFORM_HOW_HEARD:  data.get("how_heard", ""),
+        GFORM_USE_CASE:   data.get("use_case", ""),
+        GFORM_COLLECTION: data.get("collection_name", ""),
+        GFORM_FRAMEWORKS: data.get("frameworks", ""),
+        GFORM_CHANGES:    str(data.get("total_changes", "")),
+        GFORM_FORMAT:     data.get("format", ""),
+        GFORM_TIMESTAMP:  data.get("timestamp", ""),
+    }
+
+    print(f"[GFORM] Submitting to: {GFORM_URL}")
+    print(f"[GFORM] Payload keys: {list(payload.keys())}")
+    print(f"[GFORM] First entry key value: {list(payload.items())[0]}")
+
     try:
         async with httpx.AsyncClient(follow_redirects=True) as client:
-            await client.post(
+            r = await client.post(
                 GFORM_URL,
-                data={
-                    GFORM_NAME:       data.get("name", ""),
-                    GFORM_EMAIL:      data.get("email", ""),
-                    GFORM_COMPANY:    data.get("company", ""),
-                    GFORM_ROLE:       data.get("role", ""),
-                    GFORM_HOW_HEARD:  data.get("how_heard", ""),
-                    GFORM_USE_CASE:   data.get("use_case", ""),
-                    GFORM_COLLECTION: data.get("collection_name", ""),
-                    GFORM_FRAMEWORKS: data.get("frameworks", ""),
-                    GFORM_CHANGES:    str(data.get("total_changes", "")),
-                    GFORM_FORMAT:     data.get("format", ""),
-                    GFORM_TIMESTAMP:  data.get("timestamp", ""),
-                },
+                data=payload,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
                 timeout=8,
             )
+        print(f"[GFORM] Response status: {r.status_code}")
+        print(f"[GFORM] Final URL: {r.url}")
+        if r.status_code not in (200, 201, 302):
+            print(f"[GFORM] Unexpected status — body snippet: {r.text[:300]}")
+        else:
+            print(f"[GFORM] Success ✓")
     except Exception as exc:
-        print(f"[GFORM] Error: {exc}")
+        print(f"[GFORM] Exception: {type(exc).__name__}: {exc}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -175,6 +188,79 @@ async def health():
         "mode":             "form-gated trial",
         "gform_configured": bool(GFORM_URL),
         "frameworks":       list(FRAMEWORK_META.keys()),
+    }
+
+
+@app.get("/api/debug/gform")
+async def debug_gform():
+    """
+    Shows loaded env vars and fires a live test submission to Google Forms.
+    Remove this endpoint once the integration is confirmed working.
+    """
+    # Show what env vars actually loaded (mask the URL slightly for safety)
+    url_display = GFORM_URL[:60] + "…" if len(GFORM_URL) > 60 else GFORM_URL
+
+    config = {
+        "GFORM_URL":        url_display or "NOT SET",
+        "GFORM_NAME":       GFORM_NAME,
+        "GFORM_EMAIL":      GFORM_EMAIL,
+        "GFORM_COMPANY":    GFORM_COMPANY,
+        "GFORM_ROLE":       GFORM_ROLE,
+        "GFORM_HOW_HEARD":  GFORM_HOW_HEARD,
+        "GFORM_USE_CASE":   GFORM_USE_CASE,
+        "GFORM_COLLECTION": GFORM_COLLECTION,
+        "GFORM_FRAMEWORKS": GFORM_FRAMEWORKS,
+        "GFORM_CHANGES":    GFORM_CHANGES,
+        "GFORM_FORMAT":     GFORM_FORMAT,
+        "GFORM_TIMESTAMP":  GFORM_TIMESTAMP,
+    }
+
+    # Check for placeholder values
+    placeholders = [k for k, v in config.items()
+                    if v.startswith("entry.0000") or v == "NOT SET"]
+
+    # Fire a live test submission
+    test_result = "skipped — GFORM_URL not set"
+    if GFORM_URL:
+        try:
+            async with httpx.AsyncClient(follow_redirects=True) as client:
+                r = await client.post(
+                    GFORM_URL,
+                    data={
+                        GFORM_NAME:       "DEBUG TEST",
+                        GFORM_EMAIL:      "debug@test.com",
+                        GFORM_COMPANY:    "Debug",
+                        GFORM_ROLE:       "Test",
+                        GFORM_HOW_HEARD:  "other",
+                        GFORM_USE_CASE:   "debug endpoint test",
+                        GFORM_COLLECTION: "debug_collection",
+                        GFORM_FRAMEWORKS: "DEBUG",
+                        GFORM_CHANGES:    "0",
+                        GFORM_FORMAT:     "debug",
+                        GFORM_TIMESTAMP:  datetime.now(timezone.utc).isoformat(),
+                    },
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                    timeout=10,
+                )
+            test_result = {
+                "status_code":  r.status_code,
+                "final_url":    str(r.url),
+                "redirect_chain": [h.status_code for h in r.history],
+                "success":      r.status_code in (200, 201, 302),
+            }
+        except Exception as exc:
+            test_result = f"ERROR: {type(exc).__name__}: {exc}"
+
+    return {
+        "env_vars_loaded":   config,
+        "placeholder_vars":  placeholders,
+        "placeholder_warning": (
+            f"{len(placeholders)} var(s) still have placeholder values — "
+            "these will POST to Google but be silently ignored"
+            if placeholders else "none — all vars look real"
+        ),
+        "live_test_result":  test_result,
+        "note": "Delete this endpoint once confirmed working",
     }
 
 
