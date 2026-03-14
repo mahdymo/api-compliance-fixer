@@ -558,12 +558,91 @@ main {
 /* ── Utility ── */
 .spin { animation: spin .7s linear infinite; display: inline-block; }
 
+/* ── Payment picker ── */
+.pay-picker {
+  display: flex; flex-direction: column; gap: 10px;
+  flex-shrink: 0;
+}
+
+.pay-method-row {
+  display: flex; gap: 8px;
+}
+
+.pay-method-btn {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border2);
+  background: var(--surface2);
+  font-family: var(--mono); font-size: 12px; font-weight: 600;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all .18s;
+  white-space: nowrap;
+}
+.pay-method-btn:hover:not(:disabled) {
+  border-color: var(--text-dim);
+  color: var(--text-hi);
+  background: var(--surface3);
+}
+.pay-method-btn.active {
+  border-color: var(--pm-color);
+  color: var(--text-hi);
+  background: color-mix(in srgb, var(--pm-color) 10%, var(--surface2));
+  box-shadow: 0 0 0 1px var(--pm-color);
+}
+.pay-method-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Stripe blue */
+.pay-method-btn[data-provider="stripe"] { --pm-color: #6772e5; }
+/* PayPal gold */
+.pay-method-btn[data-provider="paypal"] { --pm-color: #f5a623; }
+
+.pay-method-icon {
+  font-size: 15px; line-height: 1;
+}
+.pay-method-label { letter-spacing: .03em; }
+
+.pay-go-btn {
+  width: 100%;
+  padding: 12px;
+  border: none; border-radius: 8px;
+  font-family: var(--mono); font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all .2s;
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+  letter-spacing: .02em;
+}
+.pay-go-btn.stripe-active {
+  background: #6772e5; color: #fff;
+}
+.pay-go-btn.stripe-active:hover:not(:disabled) {
+  background: #7c85f0;
+  box-shadow: 0 0 20px rgba(103,114,229,.35);
+}
+.pay-go-btn.paypal-active {
+  background: #f5a623; color: #070b10;
+}
+.pay-go-btn.paypal-active:hover:not(:disabled) {
+  background: #f7b84a;
+  box-shadow: 0 0 20px rgba(245,166,35,.35);
+}
+.pay-go-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+.pay-secure-note {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--text-dim); text-align: center;
+  letter-spacing: .04em;
+}
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
   main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; overflow: visible; }
   .panel-left { overflow-y: visible; }
   .panel-right { height: auto; overflow-y: visible; }
   #empty-state, #loading-state { height: 300px; }
+  #cta-row { flex-direction: column; align-items: stretch; }
+  .pay-picker { width: 100%; }
 }
 </style>
 </head>
@@ -577,7 +656,7 @@ main {
     API Compliance Fixer
   </div>
   <div class="h-sep"></div>
-  <div class="h-pill">v2.0</div>
+  <div class="h-pill">v3.0</div>
 </header>
 
 <!-- ── Main ── -->
@@ -667,9 +746,24 @@ main {
           <div class="cta-title" id="cta-title">Ready to apply fixes</div>
           <div class="cta-sub" id="cta-sub">Review the changes above, then pay to download your compliant file.</div>
         </div>
-        <button id="pay-btn" onclick="startPayment()">
-          Fix &amp; Download — $29
-        </button>
+
+        <!-- Payment picker -->
+        <div class="pay-picker">
+          <div class="pay-method-row">
+            <button class="pay-method-btn active" data-provider="stripe" onclick="selectProvider('stripe', this)">
+              <span class="pay-method-icon">💳</span>
+              <span class="pay-method-label">Card / Stripe</span>
+            </button>
+            <button class="pay-method-btn" data-provider="paypal" onclick="selectProvider('paypal', this)">
+              <span class="pay-method-icon">🅿</span>
+              <span class="pay-method-label">PayPal</span>
+            </button>
+          </div>
+          <button class="pay-go-btn stripe-active" id="pay-go-btn" onclick="startPayment()">
+            Pay $29 with Card
+          </button>
+          <div class="pay-secure-note">🔒 Secure checkout · No card data touches our servers</div>
+        </div>
       </div>
 
     </div><!-- end results-state -->
@@ -941,23 +1035,67 @@ function toggleCard(id) {
 }
 
 /* ══════════════════════════════════════════
-   PAYMENT
+   PAYMENT — DUAL PROVIDER
 ══════════════════════════════════════════ */
+let selectedProvider = 'stripe';
+
+function selectProvider(provider, btnEl) {
+  selectedProvider = provider;
+
+  // Update method button active state
+  document.querySelectorAll('.pay-method-btn').forEach(b => b.classList.remove('active'));
+  btnEl.classList.add('active');
+
+  // Update go-button label + colour class
+  const goBtn = document.getElementById('pay-go-btn');
+  goBtn.className = 'pay-go-btn ' + (provider === 'stripe' ? 'stripe-active' : 'paypal-active');
+  goBtn.innerHTML = provider === 'stripe'
+    ? 'Pay $29 with Card'
+    : '<span style="font-size:15px">🅿</span> Pay $29 with PayPal';
+}
+
 async function startPayment() {
   if (!state.uploadToken) return;
-  const btn = document.getElementById('pay-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spin">⟳</span> Redirecting to Stripe…';
+
+  const goBtn = document.getElementById('pay-go-btn');
+  const origHtml = goBtn.innerHTML;
+  goBtn.disabled = true;
+  goBtn.innerHTML = '<span class="spin">⟳</span> Connecting…';
+
+  // Disable method switchers while in flight
+  document.querySelectorAll('.pay-method-btn').forEach(b => b.disabled = true);
 
   try {
-    const res = await fetch(`/api/checkout/${state.uploadToken}`, { method: 'POST' });
+    const endpoint = `/api/checkout/${selectedProvider}/${state.uploadToken}`;
+    const res = await fetch(endpoint, { method: 'POST' });
     const data = await res.json();
-    if (!res.ok) { showBannerError(data.detail || 'Could not create session.'); btn.disabled=false; btn.innerHTML='Fix & Download — $29'; return; }
-    window.location.href = data.checkout_url;
+
+    if (!res.ok) {
+      showBannerError(data.detail || `${selectedProvider} checkout failed.`);
+      _resetPayBtn(goBtn, origHtml);
+      return;
+    }
+
+    // Both providers return a URL to redirect to
+    const redirectUrl = data.checkout_url || data.approve_url;
+    if (!redirectUrl) {
+      showBannerError('No redirect URL returned from payment provider.');
+      _resetPayBtn(goBtn, origHtml);
+      return;
+    }
+
+    window.location.href = redirectUrl;
+
   } catch (err) {
-    showBannerError('Payment service unavailable.');
-    btn.disabled=false; btn.innerHTML='Fix & Download — $29';
+    showBannerError('Network error — payment service unreachable.');
+    _resetPayBtn(goBtn, origHtml);
   }
+}
+
+function _resetPayBtn(btn, origHtml) {
+  btn.disabled = false;
+  btn.innerHTML = origHtml;
+  document.querySelectorAll('.pay-method-btn').forEach(b => b.disabled = false);
 }
 
 /* ══════════════════════════════════════════
