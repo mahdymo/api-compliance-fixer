@@ -1,12 +1,10 @@
 """
-API Compliance Fixer — FastAPI Backend v4 (Trial Mode)
-No payment gateway — free trial with feedback collection.
-Supports: Postman v2/v2.1 collections + OpenAPI 3.x specs
-Frameworks: SAMA, PCI-DSS, NIS2, GDPR, DORA
+API Compliance Fixer — FastAPI Backend v5
+Feedback via Google Forms (server-side POST — no API key, no OAuth).
+Supports: Postman v2/v2.1 + OpenAPI 3.x | Frameworks: SAMA, PCI-DSS, NIS2, GDPR, DORA
 """
 from __future__ import annotations
 
-import csv
 import io
 import json
 import os
@@ -15,6 +13,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -23,19 +22,37 @@ from fastapi.staticfiles import StaticFiles
 from frameworks import FRAMEWORK_META, FRAMEWORK_RULES
 from transform import detect_format, preview, transform
 
-# ── Config ─────────────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONFIG
+# ═══════════════════════════════════════════════════════════════════════════════
+
 BASE_URL         = os.getenv("BASE_URL", "http://localhost:8000")
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 VALID_FRAMEWORKS = set(FRAMEWORK_META.keys())
-FEEDBACK_FILE    = Path(os.getenv("FEEDBACK_FILE", "/tmp/feedback.csv"))
-ADMIN_KEY        = os.getenv("ADMIN_KEY", "")
 
-# ── In-memory stores ────────────────────────────────────────────────────────────
-pending_uploads: dict[str, dict] = {}   # upload_token  → entry
-trial_tokens:    dict[str, dict] = {}   # download_token → entry
+# ── Google Forms ───────────────────────────────────────────────────────────────
+# Set these from your form's pre-fill URL (see README for instructions).
+# GFORM_URL  : https://docs.google.com/forms/d/<FORM_ID>/formResponse
+# GFORM_* entry IDs : the entry.XXXXXXXXXX= values from the pre-fill URL
+GFORM_URL          = os.getenv("GFORM_URL", "")
+GFORM_NAME         = os.getenv("GFORM_NAME",         "entry.000000001")
+GFORM_EMAIL        = os.getenv("GFORM_EMAIL",        "entry.000000002")
+GFORM_COMPANY      = os.getenv("GFORM_COMPANY",      "entry.000000003")
+GFORM_ROLE         = os.getenv("GFORM_ROLE",         "entry.000000004")
+GFORM_HOW_HEARD    = os.getenv("GFORM_HOW_HEARD",    "entry.000000005")
+GFORM_USE_CASE     = os.getenv("GFORM_USE_CASE",     "entry.000000006")
+GFORM_COLLECTION   = os.getenv("GFORM_COLLECTION",   "entry.000000007")
+GFORM_FRAMEWORKS   = os.getenv("GFORM_FRAMEWORKS",   "entry.000000008")
+GFORM_CHANGES      = os.getenv("GFORM_CHANGES",      "entry.000000009")
+GFORM_FORMAT       = os.getenv("GFORM_FORMAT",       "entry.000000010")
+GFORM_TIMESTAMP    = os.getenv("GFORM_TIMESTAMP",    "entry.000000011")
 
-# ── App setup ───────────────────────────────────────────────────────────────────
-app = FastAPI(title="API Compliance Fixer — Trial", version="4.0.0")
+# ── In-memory stores ───────────────────────────────────────────────────────────
+pending_uploads: dict[str, dict] = {}
+trial_tokens:    dict[str, dict] = {}
+
+# ── App ────────────────────────────────────────────────────────────────────────
+app = FastAPI(title="API Compliance Fixer — Trial", version="5.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 static_dir = Path(__file__).parent / "static"
@@ -43,7 +60,54 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# HELPERS
+# GOOGLE FORMS HELPER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def _submit_to_gform(data: dict) -> bool:
+    """
+    POST a submission to the Google Form.
+    Returns True on success, False if GFORM_URL is not configured.
+    Never raises — a Forms failure must not block the download.
+    """
+    if not GFORM_URL:
+        # Not configured — log to stdout so it still shows in Railway logs
+        print(f"[GFORM] Not configured. Submission data: {json.dumps(data)}")
+        return False
+
+    payload = {
+        GFORM_NAME:       data.get("name", ""),
+        GFORM_EMAIL:      data.get("email", ""),
+        GFORM_COMPANY:    data.get("company", ""),
+        GFORM_ROLE:       data.get("role", ""),
+        GFORM_HOW_HEARD:  data.get("how_heard", ""),
+        GFORM_USE_CASE:   data.get("use_case", ""),
+        GFORM_COLLECTION: data.get("collection_name", ""),
+        GFORM_FRAMEWORKS: data.get("frameworks", ""),
+        GFORM_CHANGES:    str(data.get("total_changes", "")),
+        GFORM_FORMAT:     data.get("format", ""),
+        GFORM_TIMESTAMP:  data.get("timestamp", ""),
+    }
+
+    try:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            resp = await client.post(
+                GFORM_URL,
+                data=payload,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=8,
+            )
+        # Google Forms returns 200 on success and redirects on completion —
+        # both are fine. Anything else we log but don't raise.
+        if resp.status_code not in (200, 201, 302):
+            print(f"[GFORM] Unexpected status {resp.status_code}")
+        return True
+    except Exception as exc:
+        print(f"[GFORM] Submission error: {exc}")
+        return False
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FILE HELPERS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _parse_frameworks(s: str) -> list[str]:
@@ -81,28 +145,6 @@ def _col_name(entry: dict) -> str:
 def _fw_label(entry: dict) -> str:
     return " + ".join(FRAMEWORK_META[f]["name"] for f in entry["frameworks"] if f in FRAMEWORK_META)
 
-def _write_feedback(row: dict) -> None:
-    fieldnames = [
-        "timestamp", "name", "email", "company", "role",
-        "how_heard", "use_case", "collection_name",
-        "frameworks", "total_changes", "format",
-    ]
-    exists = FEEDBACK_FILE.exists()
-    with open(FEEDBACK_FILE, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-        if not exists:
-            writer.writeheader()
-        writer.writerow(row)
-
-def _count_submissions() -> int:
-    try:
-        if not FEEDBACK_FILE.exists():
-            return 0
-        with open(FEEDBACK_FILE, encoding="utf-8") as f:
-            return max(0, sum(1 for _ in f) - 1)
-    except Exception:
-        return -1
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ROUTES — STATIC
@@ -124,9 +166,11 @@ async def list_frameworks():
 @app.get("/api/health")
 async def health():
     return {
-        "status": "ok", "version": "4.0.0", "mode": "trial",
+        "status": "ok",
+        "version": "5.0.0",
+        "mode": "trial",
+        "gform_configured": bool(GFORM_URL),
         "frameworks": list(FRAMEWORK_META.keys()),
-        "submissions": _count_submissions(),
     }
 
 
@@ -150,7 +194,10 @@ async def upload(file: UploadFile = File(...), frameworks: str = Form(...)):
         raise HTTPException(422, str(exc)) from exc
     changelog = preview(parsed, fw_ids)
     token = secrets.token_urlsafe(32)
-    pending_uploads[token] = {"raw": raw, "filename": filename, "frameworks": fw_ids, "format": fmt, "changelog": changelog}
+    pending_uploads[token] = {
+        "raw": raw, "filename": filename,
+        "frameworks": fw_ids, "format": fmt, "changelog": changelog,
+    }
     return {"upload_token": token, "format": fmt, "changelog_preview": changelog}
 
 
@@ -168,7 +215,10 @@ async def request_trial(
     how_heard:    str = Form(""),
     use_case:     str = Form(""),
 ):
-    """Exchange upload token for download token. Collects user info. No payment."""
+    """
+    Validate the form, submit to Google Forms, issue download token.
+    The Google Forms submission is fire-and-forget — it never blocks the download.
+    """
     entry = pending_uploads.get(upload_token)
     if not entry:
         raise HTTPException(404, "Upload not found or expired. Please re-upload your file.")
@@ -181,18 +231,20 @@ async def request_trial(
         raise HTTPException(400, "A valid email address is required.")
 
     changelog = entry.get("changelog", {})
-    _write_feedback({
-        "timestamp":      datetime.now(timezone.utc).isoformat(),
-        "name":           name,
-        "email":          email,
-        "company":        company.strip(),
-        "role":           role.strip(),
-        "how_heard":      how_heard,
-        "use_case":       use_case,
+
+    # Fire-and-forget to Google Forms — does NOT block on failure
+    await _submit_to_gform({
+        "timestamp":       datetime.now(timezone.utc).isoformat(),
+        "name":            name,
+        "email":           email,
+        "company":         company.strip(),
+        "role":            role.strip(),
+        "how_heard":       how_heard,
+        "use_case":        use_case,
         "collection_name": _col_name(entry),
-        "frameworks":     ", ".join(entry["frameworks"]),
-        "total_changes":  changelog.get("total_changes", 0),
-        "format":         entry.get("format", ""),
+        "frameworks":      ", ".join(entry["frameworks"]),
+        "total_changes":   changelog.get("total_changes", 0),
+        "format":          entry.get("format", ""),
     })
 
     dl_token = secrets.token_urlsafe(32)
@@ -206,42 +258,30 @@ async def request_trial(
 
 @app.post("/api/feedback")
 async def submit_feedback(request: Request):
-    """Accept star rating + open-text feedback after download."""
+    """Post-download star rating + open comment — also goes to Google Forms."""
     try:
         body = await request.json()
     except Exception:
         raise HTTPException(400, "Invalid JSON body.")
-    _write_feedback({
-        "timestamp":  datetime.now(timezone.utc).isoformat(),
-        "name":       body.get("name", ""),
-        "email":      body.get("email", ""),
-        "company":    "", "role":    "", "how_heard": "",
-        "use_case":   body.get("comment", ""),
+
+    await _submit_to_gform({
+        "timestamp":       datetime.now(timezone.utc).isoformat(),
+        "name":            body.get("name", ""),
+        "email":           body.get("email", ""),
+        "company":         "",
+        "role":            "",
+        "how_heard":       "",
+        "use_case":        body.get("comment", ""),
         "collection_name": "",
-        "frameworks": "",
-        "total_changes": "",
-        "format": f"post-download | rating={body.get('rating','')} | would_pay={body.get('would_pay','')} | price={body.get('price_expectation','')}",
+        "frameworks":      "",
+        "total_changes":   "",
+        "format":          (
+            f"post-download | rating={body.get('rating','')} | "
+            f"would_pay={body.get('would_pay','')} | "
+            f"price={body.get('price_expectation','')}"
+        ),
     })
     return {"ok": True}
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# ROUTES — ADMIN
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@app.get("/api/admin/feedback")
-async def export_feedback(key: str = ""):
-    """Download the full feedback CSV. Set ADMIN_KEY env var to protect."""
-    if ADMIN_KEY and key != ADMIN_KEY:
-        raise HTTPException(403, "Invalid admin key.")
-    if not FEEDBACK_FILE.exists():
-        raise HTTPException(404, "No feedback collected yet.")
-    content = FEEDBACK_FILE.read_text(encoding="utf-8")
-    return StreamingResponse(
-        io.BytesIO(content.encode()),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=feedback.csv"},
-    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -259,7 +299,7 @@ async def download(download_token: str):
     try:
         parsed = _parse_file(raw_bytes, filename)
     except Exception as exc:
-        raise HTTPException(422, f"Could not parse stored file: {exc}") from exc
+        raise HTTPException(422, f"Could not parse file: {exc}") from exc
     fixed, changelog = transform(parsed, framework_ids)
     stem     = filename.rsplit(".", 1)[0]
     fw_sfx   = "_".join(f.lower() for f in framework_ids)
@@ -272,6 +312,7 @@ async def download(download_token: str):
     buf.seek(0)
     return StreamingResponse(buf, media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{out_name}.zip"'})
+
 
 def _build_md(cl: dict) -> str:
     lines = ["# API Compliance Fix Summary", "",
@@ -292,6 +333,7 @@ def _build_md(cl: dict) -> str:
             lines.append(f"- `{req['request']}` — {req['detail']}")
         lines.append("")
     return "\n".join(lines)
+
 
 if __name__ == "__main__":
     import uvicorn
