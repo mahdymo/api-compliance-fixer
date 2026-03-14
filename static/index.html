@@ -5,148 +5,106 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>API Compliance Fixer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Epilogue:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Epilogue:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-/* ═══════════════════════════════════════════
-   TOKENS
-═══════════════════════════════════════════ */
 :root {
-  --bg:        #070b10;
-  --surface:   #0d1420;
-  --surface2:  #121c2c;
-  --surface3:  #172236;
-  --border:    #1a2840;
-  --border2:   #223352;
-  --text:      #b0c4d8;
-  --text-dim:  #4a6480;
-  --text-hi:   #e2eef8;
-  --mono: 'JetBrains Mono', monospace;
-  --sans: 'Epilogue', sans-serif;
-
-  /* Framework accent colours */
-  --sama:   #00c8ff;
-  --pci:    #ffaa00;
-  --nis2:   #4488ff;
-  --gdpr:   #00d490;
-  --dora:   #ff4d7a;
-
+  --bg:       #070b10;
+  --surface:  #0d1420;
+  --surface2: #121c2c;
+  --surface3: #172236;
+  --border:   #1a2840;
+  --border2:  #223352;
+  --text:     #b0c4d8;
+  --text-dim: #4a6480;
+  --text-hi:  #e2eef8;
+  --sama:  #00c8ff;
+  --pci:   #ffaa00;
+  --nis2:  #4488ff;
+  --gdpr:  #00d490;
+  --dora:  #ff4d7a;
   --critical: #ff4d4d;
   --high:     #ff9500;
   --medium:   #ffd000;
-  --info:     #4a6480;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Epilogue', sans-serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--sans);
-  min-height: 100vh;
-  overflow-x: hidden;
+  background: var(--bg); color: var(--text);
+  font-family: var(--sans); min-height: 100vh; overflow-x: hidden;
 }
-
-/* ── Background grid ── */
 body::before {
-  content: '';
-  position: fixed; inset: 0; z-index: 0;
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background:
     linear-gradient(rgba(0,200,255,.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0,200,255,.025) 1px, transparent 1px);
   background-size: 48px 48px;
-  pointer-events: none;
 }
 
-/* ═══════════════════════════════════════════
-   LAYOUT SHELL
-═══════════════════════════════════════════ */
+/* ── Shell ── */
 #app {
   position: relative; z-index: 1;
-  display: grid;
-  grid-template-rows: 56px 1fr;
-  min-height: 100vh;
+  display: grid; grid-template-rows: 56px 1fr; min-height: 100vh;
 }
 
 /* ── Header ── */
 header {
-  display: flex; align-items: center;
-  padding: 0 28px;
+  display: flex; align-items: center; padding: 0 28px;
   border-bottom: 1px solid var(--border);
-  background: rgba(7,11,16,.85);
-  backdrop-filter: blur(12px);
-  position: sticky; top: 0; z-index: 50;
-  gap: 16px;
+  background: rgba(7,11,16,.85); backdrop-filter: blur(12px);
+  position: sticky; top: 0; z-index: 50; gap: 16px;
 }
-
 .h-logo {
   display: flex; align-items: center; gap: 9px;
   font-family: var(--mono); font-size: 14px; font-weight: 700;
-  color: var(--text-hi); letter-spacing: .03em;
-  flex-shrink: 0;
+  color: var(--text-hi); letter-spacing: .03em; flex-shrink: 0;
 }
 .h-logo-mark {
   width: 28px; height: 28px;
   background: conic-gradient(var(--sama), var(--nis2), var(--gdpr), var(--sama));
-  border-radius: 6px; display: flex; align-items: center; justify-content: center;
-  font-size: 12px; color: #070b10; font-weight: 800;
+  border-radius: 6px; display: flex; align-items: center;
+  justify-content: center; font-size: 12px; color: #070b10; font-weight: 800;
 }
 .h-sep { flex: 1; }
 .h-pill {
-  font-family: var(--mono); font-size: 10px;
-  padding: 3px 9px; border-radius: 20px;
-  border: 1px solid var(--border2);
+  font-family: var(--mono); font-size: 10px; padding: 3px 9px;
+  border-radius: 20px; border: 1px solid var(--border2);
   color: var(--text-dim); letter-spacing: .06em;
 }
 
-/* ── Main two-column layout ── */
+/* ── Two-column layout ── */
 main {
-  display: grid;
-  grid-template-columns: 380px 1fr;
-  height: calc(100vh - 56px);
-  overflow: hidden;
+  display: grid; grid-template-columns: 380px 1fr;
+  height: calc(100vh - 56px); overflow: hidden;
 }
 
 /* ── Left panel ── */
 .panel-left {
   border-right: 1px solid var(--border);
   display: flex; flex-direction: column;
-  overflow-y: auto;
-  background: var(--surface);
+  overflow-y: auto; background: var(--surface);
 }
-
-.panel-section {
-  padding: 24px 24px 0;
-}
-
+.panel-section { padding: 24px 24px 0; }
 .panel-section + .panel-section {
-  border-top: 1px solid var(--border);
-  margin-top: 24px;
-  padding-top: 24px;
+  border-top: 1px solid var(--border); margin-top: 24px; padding-top: 24px;
 }
-
 .panel-label {
-  font-family: var(--mono); font-size: 10px;
-  letter-spacing: .12em; text-transform: uppercase;
-  color: var(--text-dim); margin-bottom: 14px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px;
   display: flex; align-items: center; gap: 8px;
 }
-.panel-label::after {
-  content: ''; flex: 1; height: 1px;
-  background: var(--border);
-}
+.panel-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-/* ── Drop zone ── */
+/* Drop zone */
 #drop-zone {
-  border: 1.5px dashed var(--border2);
-  border-radius: 10px; padding: 28px 20px;
-  text-align: center; cursor: pointer;
-  transition: all .2s; position: relative;
-  background: var(--surface2);
-  overflow: hidden;
+  border: 1.5px dashed var(--border2); border-radius: 10px; padding: 28px 20px;
+  text-align: center; cursor: pointer; transition: all .2s;
+  position: relative; background: var(--surface2); overflow: hidden;
 }
 #drop-zone::after {
-  content: '';
-  position: absolute; inset: 0;
+  content: ''; position: absolute; inset: 0;
   background: radial-gradient(ellipse 70% 60% at 50% 100%, rgba(0,200,255,.07), transparent);
   opacity: 0; transition: opacity .3s;
 }
@@ -155,441 +113,156 @@ main {
   box-shadow: 0 0 0 1px var(--sama), 0 0 24px rgba(0,200,255,.15);
 }
 #drop-zone:hover::after, #drop-zone.over::after { opacity: 1; }
-
-.dz-icon { font-size: 32px; margin-bottom: 10px; }
-.dz-title {
-  font-family: var(--mono); font-size: 13px; font-weight: 600;
-  color: var(--text-hi); margin-bottom: 5px;
-}
-.dz-sub { font-size: 12px; color: var(--text-dim); }
+.dz-icon  { font-size: 32px; margin-bottom: 10px; }
+.dz-title { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text-hi); margin-bottom: 5px; }
+.dz-sub   { font-size: 12px; color: var(--text-dim); }
 #file-input { display: none; }
 
 .file-chip {
   display: none; margin-top: 12px;
-  background: rgba(0,200,255,.08);
-  border: 1px solid rgba(0,200,255,.2);
+  background: rgba(0,200,255,.08); border: 1px solid rgba(0,200,255,.2);
   border-radius: 6px; padding: 8px 12px;
-  font-family: var(--mono); font-size: 11px;
-  color: var(--sama); align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 11px; color: var(--sama);
+  align-items: center; gap: 8px;
 }
 .file-chip.show { display: flex; }
-.file-chip-remove {
-  margin-left: auto; cursor: pointer; opacity: .6;
-}
+.file-chip-remove { margin-left: auto; cursor: pointer; opacity: .6; }
 .file-chip-remove:hover { opacity: 1; }
 
-/* ── Framework selector ── */
-.fw-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding-bottom: 24px;
-}
-
+/* Framework grid */
+.fw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-bottom: 24px; }
 .fw-card {
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 14px;
-  cursor: pointer;
-  transition: all .18s;
-  position: relative;
-  user-select: none;
-  background: var(--surface2);
+  border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 14px;
+  cursor: pointer; transition: all .18s; position: relative;
+  user-select: none; background: var(--surface2);
 }
-
 .fw-card:hover { border-color: var(--border2); }
-
 .fw-card.selected {
   border-color: var(--fw-color);
   background: color-mix(in srgb, var(--fw-color) 8%, var(--surface2));
   box-shadow: 0 0 0 1px var(--fw-color), inset 0 0 20px color-mix(in srgb, var(--fw-color) 5%, transparent);
 }
-
 .fw-check {
-  position: absolute; top: 8px; right: 8px;
-  width: 16px; height: 16px;
-  border: 1.5px solid var(--border2);
-  border-radius: 4px;
-  background: transparent;
+  position: absolute; top: 8px; right: 8px; width: 16px; height: 16px;
+  border: 1.5px solid var(--border2); border-radius: 4px; background: transparent;
   display: flex; align-items: center; justify-content: center;
-  font-size: 10px; color: transparent;
-  transition: all .15s;
+  font-size: 10px; color: transparent; transition: all .15s;
 }
-.fw-card.selected .fw-check {
-  border-color: var(--fw-color);
-  background: var(--fw-color);
-  color: #070b10;
-}
-
-.fw-icon { font-size: 20px; margin-bottom: 6px; }
-.fw-name {
-  font-family: var(--mono); font-size: 11px; font-weight: 700;
-  color: var(--text-hi); letter-spacing: .04em;
-}
-.fw-region {
-  font-size: 10px; color: var(--text-dim); margin-top: 2px;
-}
-.fw-rules {
-  font-family: var(--mono); font-size: 10px;
-  color: var(--fw-color, var(--text-dim));
-  margin-top: 6px;
-  opacity: 0;
-  transition: opacity .2s;
-}
+.fw-card.selected .fw-check { border-color: var(--fw-color); background: var(--fw-color); color: #070b10; }
+.fw-icon   { font-size: 20px; margin-bottom: 6px; }
+.fw-name   { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--text-hi); letter-spacing: .04em; }
+.fw-region { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+.fw-rules  { font-family: var(--mono); font-size: 10px; color: var(--fw-color, var(--text-dim)); margin-top: 6px; opacity: 0; transition: opacity .2s; }
 .fw-card.selected .fw-rules { opacity: 1; }
 
-/* ── Analyse button ── */
+/* Analyse button */
 .analyse-btn {
-  width: 100%; padding: 13px;
-  background: var(--sama); color: #070b10;
-  border: none; border-radius: 9px;
-  font-family: var(--mono); font-size: 13px; font-weight: 700;
-  cursor: pointer; transition: all .2s;
-  letter-spacing: .03em;
+  width: 100%; padding: 13px; background: var(--sama); color: #070b10;
+  border: none; border-radius: 9px; font-family: var(--mono); font-size: 13px;
+  font-weight: 700; cursor: pointer; transition: all .2s; letter-spacing: .03em;
   display: flex; align-items: center; justify-content: center; gap: 10px;
 }
-.analyse-btn:hover:not(:disabled) {
-  background: #33d6ff;
-  box-shadow: 0 0 24px rgba(0,200,255,.3);
-}
+.analyse-btn:hover:not(:disabled) { background: #33d6ff; box-shadow: 0 0 24px rgba(0,200,255,.3); }
 .analyse-btn:disabled { opacity: .45; cursor: not-allowed; }
 
 .left-footer {
-  padding: 16px 24px;
-  border-top: 1px solid var(--border);
-  font-size: 11px; color: var(--text-dim);
-  font-family: var(--mono);
-  margin-top: auto;
+  padding: 16px 24px; border-top: 1px solid var(--border);
+  font-size: 11px; color: var(--text-dim); font-family: var(--mono); margin-top: auto;
 }
 
-/* ═══════════════════════════════════════════
-   RIGHT PANEL — RESULTS
-═══════════════════════════════════════════ */
-.panel-right {
-  overflow-y: auto;
-  padding: 32px;
-  display: flex; flex-direction: column; gap: 24px;
-}
+/* ── Right panel ── */
+.panel-right { overflow-y: auto; padding: 32px; display: flex; flex-direction: column; gap: 24px; }
 
-/* ── Empty state ── */
+/* Empty state */
 #empty-state {
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  height: 100%; gap: 16px; color: var(--text-dim);
-  text-align: center;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 100%; gap: 16px; color: var(--text-dim); text-align: center;
 }
-.empty-icon { font-size: 56px; opacity: .3; }
-.empty-title {
-  font-family: var(--mono); font-size: 15px; font-weight: 600;
-  color: var(--text-dim);
-}
-.empty-sub { font-size: 13px; max-width: 340px; line-height: 1.6; }
+.empty-icon  { font-size: 56px; opacity: .3; }
+.empty-title { font-family: var(--mono); font-size: 15px; font-weight: 600; color: var(--text-dim); }
+.empty-sub   { font-size: 13px; max-width: 340px; line-height: 1.6; }
 
-/* ── Loading state ── */
+/* Loading state */
 #loading-state {
-  display: none; flex-direction: column;
-  align-items: center; justify-content: center;
-  height: 100%; gap: 20px;
+  display: none; flex-direction: column; align-items: center;
+  justify-content: center; height: 100%; gap: 20px;
 }
 .loader-ring {
-  width: 52px; height: 52px;
-  border: 3px solid var(--border2);
-  border-top-color: var(--sama);
-  border-radius: 50%;
+  width: 52px; height: 52px; border: 3px solid var(--border2);
+  border-top-color: var(--sama); border-radius: 50%;
   animation: spin .8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.loader-label {
-  font-family: var(--mono); font-size: 13px;
-  color: var(--text-dim); letter-spacing: .06em;
-}
+.loader-label { font-family: var(--mono); font-size: 13px; color: var(--text-dim); letter-spacing: .06em; }
 
-/* ── Results state ── */
+/* Results state */
 #results-state { display: none; flex-direction: column; gap: 24px; }
 
-/* ── Summary cards row ── */
-.summary-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 10px;
-}
-.s-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 16px;
-  text-align: center;
-}
-.s-num {
-  font-family: var(--mono); font-size: 26px; font-weight: 700;
-  color: var(--text-hi); display: block; line-height: 1;
-}
-.s-label {
-  font-size: 11px; color: var(--text-dim);
-  text-transform: uppercase; letter-spacing: .06em;
-  margin-top: 5px;
-}
+/* Summary cards */
+.summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; }
+.s-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; text-align: center; }
+.s-num   { font-family: var(--mono); font-size: 26px; font-weight: 700; color: var(--text-hi); display: block; line-height: 1; }
+.s-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; margin-top: 5px; }
 
-/* ── Severity bar ── */
-.sev-bar {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px 20px;
-}
-.sev-bar-title {
-  font-family: var(--mono); font-size: 11px;
-  color: var(--text-dim); letter-spacing: .08em;
-  text-transform: uppercase; margin-bottom: 12px;
-}
-.sev-row {
-  display: flex; align-items: center; gap: 12px;
-  margin-bottom: 8px;
-}
+/* Severity bar */
+.sev-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; }
+.sev-bar-title { font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 12px; }
+.sev-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .sev-row:last-child { margin-bottom: 0; }
-.sev-dot {
-  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-}
-.sev-name {
-  font-family: var(--mono); font-size: 11px;
-  color: var(--text-dim); width: 64px; flex-shrink: 0;
-}
-.sev-track {
-  flex: 1; height: 6px;
-  background: var(--border);
-  border-radius: 3px; overflow: hidden;
-}
-.sev-fill {
-  height: 100%; border-radius: 3px;
-  transition: width .6s cubic-bezier(.4,0,.2,1);
-}
-.sev-count {
-  font-family: var(--mono); font-size: 11px;
-  color: var(--text-dim); width: 24px; text-align: right; flex-shrink: 0;
-}
+.sev-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.sev-name { font-family: var(--mono); font-size: 11px; color: var(--text-dim); width: 64px; flex-shrink: 0; }
+.sev-track { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.sev-fill  { height: 100%; border-radius: 3px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+.sev-count { font-family: var(--mono); font-size: 11px; color: var(--text-dim); width: 24px; text-align: right; }
 
-/* ── Framework summary pills ── */
-.fw-summary-row {
-  display: flex; flex-wrap: wrap; gap: 8px;
-}
+/* Framework pills */
+.fw-summary-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .fw-pill {
   display: flex; align-items: center; gap: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border2);
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-family: var(--mono); font-size: 11px;
-  color: var(--text);
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 8px 14px;
+  font-family: var(--mono); font-size: 11px; color: var(--text);
 }
-.fw-pill-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-}
-.fw-pill-count {
-  font-size: 11px; color: var(--text-dim);
-  margin-left: 4px;
-}
+.fw-pill-dot   { width: 7px; height: 7px; border-radius: 50%; }
+.fw-pill-count { font-size: 11px; color: var(--text-dim); margin-left: 4px; }
 
-/* ── Change list section ── */
+/* Change list */
 .changes-section {}
-.changes-header {
-  display: flex; align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-.changes-title {
-  font-family: var(--mono); font-size: 11px;
-  color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase;
-}
-.filter-tabs {
-  display: flex; gap: 4px;
-}
+.changes-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.changes-title  { font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; }
+.filter-tabs { display: flex; gap: 4px; }
 .filter-tab {
-  font-family: var(--mono); font-size: 10px;
-  padding: 4px 10px; border-radius: 5px;
-  cursor: pointer; border: 1px solid var(--border);
-  color: var(--text-dim); background: transparent;
-  transition: all .15s; letter-spacing: .04em;
+  font-family: var(--mono); font-size: 10px; padding: 4px 10px; border-radius: 5px;
+  cursor: pointer; border: 1px solid var(--border); color: var(--text-dim); background: transparent; transition: all .15s;
 }
 .filter-tab:hover { border-color: var(--border2); color: var(--text); }
-.filter-tab.active {
-  background: var(--border2); color: var(--text-hi);
-  border-color: var(--border2);
-}
+.filter-tab.active { background: var(--border2); color: var(--text-hi); border-color: var(--border2); }
 
 .change-list { display: flex; flex-direction: column; gap: 6px; }
-
-.change-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  overflow: hidden;
-  transition: border-color .15s;
-}
+.change-card { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; overflow: hidden; transition: border-color .15s; }
 .change-card:hover { border-color: var(--border2); }
-
-.change-header {
-  display: flex; align-items: center;
-  padding: 11px 14px; gap: 10px;
-  cursor: pointer;
-}
-
-.change-sev-dot {
-  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
-}
-
-.change-rule-id {
-  font-family: var(--mono); font-size: 10px; font-weight: 700;
-  padding: 2px 7px; border-radius: 4px;
-  flex-shrink: 0;
-}
-
-.change-title {
-  font-size: 13px; font-weight: 500;
-  color: var(--text-hi); flex: 1;
-}
-
-.change-count {
-  font-family: var(--mono); font-size: 11px;
-  color: var(--text-dim); flex-shrink: 0;
-}
-
-.change-chevron {
-  color: var(--text-dim); font-size: 11px;
-  transition: transform .2s;
-  flex-shrink: 0;
-}
+.change-header { display: flex; align-items: center; padding: 11px 14px; gap: 10px; cursor: pointer; }
+.change-sev-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.change-rule-id { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; }
+.change-title   { font-size: 13px; font-weight: 500; color: var(--text-hi); flex: 1; }
+.change-count   { font-family: var(--mono); font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
+.change-chevron { color: var(--text-dim); font-size: 11px; transition: transform .2s; flex-shrink: 0; }
 .change-card.open .change-chevron { transform: rotate(180deg); }
-
-.change-ref {
-  font-family: var(--mono); font-size: 10px;
-  color: var(--text-dim); padding: 0 14px 10px;
-  letter-spacing: .04em;
-}
-
-.change-body {
-  display: none; border-top: 1px solid var(--border);
-  padding: 10px 14px;
-}
+.change-ref  { font-family: var(--mono); font-size: 10px; color: var(--text-dim); padding: 0 14px 10px; letter-spacing: .04em; }
+.change-body { display: none; border-top: 1px solid var(--border); padding: 10px 14px; }
 .change-card.open .change-body { display: block; }
-
-.change-req-item {
-  display: flex; align-items: flex-start; gap: 10px;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 12px;
-}
+.change-req-item { display: flex; align-items: flex-start; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
 .change-req-item:last-child { border-bottom: none; }
-.change-req-name {
-  font-family: var(--mono); font-size: 11px;
-  color: var(--sama); flex-shrink: 0; max-width: 200px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
+.change-req-name   { font-family: var(--mono); font-size: 11px; color: var(--sama); flex-shrink: 0; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .change-req-detail { color: var(--text-dim); line-height: 1.5; }
 
-/* ── Dual option CTA ── */
-#cta-row {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px 24px;
-  display: flex; flex-direction: column; gap: 16px;
-}
-.cta-info { display: flex; flex-direction: column; gap: 4px; }
-.cta-title { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--text-hi); }
-.cta-sub   { font-size: 12px; color: var(--text-dim); }
-
-/* Two-option split */
-.option-split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.option-card {
-  border: 1.5px solid var(--border2);
-  border-radius: 10px;
-  padding: 18px;
-  background: var(--surface2);
-  display: flex; flex-direction: column; gap: 12px;
-  transition: border-color .2s;
-}
-.option-card:hover { border-color: var(--border2); }
-.option-card.active { border-color: var(--sama); box-shadow: 0 0 0 1px var(--sama); }
-
-.option-header {
-  display: flex; align-items: center; gap: 8px;
-  font-family: var(--mono); font-size: 12px; font-weight: 700;
-  color: var(--text-hi); letter-spacing: .04em;
-}
-.option-icon { font-size: 16px; }
-.option-desc { font-size: 11px; color: var(--text-dim); line-height: 1.55; }
-
-/* Shared field styles */
-.opt-field { display: flex; flex-direction: column; gap: 5px; }
-.opt-field label {
-  font-family: var(--mono); font-size: 10px; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--text-dim);
-}
-.opt-field input,
-.opt-field select {
-  background: var(--surface); border: 1px solid var(--border2);
-  border-radius: 7px; padding: 9px 12px;
-  font-family: var(--mono); font-size: 12px; color: var(--text-hi);
-  outline: none; transition: border-color .2s; width: 100%;
-}
-.opt-field input:focus,
-.opt-field select:focus { border-color: var(--sama); }
-.opt-field select option { background: var(--surface2); }
-
-/* Buttons */
-.opt-btn {
-  width: 100%; padding: 11px;
-  border: none; border-radius: 8px;
-  font-family: var(--mono); font-size: 12px; font-weight: 700;
-  cursor: pointer; transition: all .2s; letter-spacing: .02em;
-  display: flex; align-items: center; justify-content: center; gap: 7px;
-}
-.opt-btn.primary {
-  background: var(--sama); color: #070b10;
-}
-.opt-btn.primary:hover:not(:disabled) {
-  background: #33d6ff; box-shadow: 0 0 16px rgba(0,200,255,.25);
-}
-.opt-btn.secondary {
-  background: var(--surface3); color: var(--text-hi);
-  border: 1px solid var(--border2);
-}
-.opt-btn.secondary:hover:not(:disabled) {
-  border-color: var(--sama); color: var(--sama);
-}
-.opt-btn:disabled { opacity: .45; cursor: not-allowed; }
-
-/* Success banner */
-.success-banner {
-  background: rgba(0,200,255,.06);
-  border: 1px solid rgba(0,200,255,.2);
-  border-radius: 8px; padding: 13px 16px;
-  display: none;
-}
-.success-banner-title {
-  font-family: var(--mono); font-size: 13px; font-weight: 700;
-  color: var(--sama); margin-bottom: 5px;
-}
-.success-banner-sub {
-  font-size: 12px; color: var(--text-dim); line-height: 1.6;
-}
-
-/* Locked overlay */
+/* ── Locked overlay ── */
 .locked-overlay {
-  position: relative; border: 1px solid var(--border);
-  border-radius: 12px; padding: 20px 24px;
-  background: var(--surface); display: flex;
-  flex-direction: column; gap: 12px; overflow: hidden;
+  position: relative; border: 1px solid var(--border); border-radius: 12px;
+  padding: 20px 24px; background: var(--surface);
+  display: flex; flex-direction: column; gap: 12px; overflow: hidden;
 }
-.locked-blur {
-  filter: blur(4px); opacity: .3;
-  pointer-events: none; user-select: none;
-}
+.locked-blur { filter: blur(4px); opacity: .3; pointer-events: none; user-select: none; }
 .locked-badge {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center; z-index: 2;
@@ -603,7 +276,42 @@ main {
 .locked-label { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--text-hi); }
 .locked-sub   { font-size: 11px; color: var(--text-dim); }
 
-/* Download state */
+/* ── Unlock form ── */
+#unlock-form-section {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 22px 24px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.unlock-header { display: flex; flex-direction: column; gap: 5px; }
+.unlock-title  { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--text-hi); }
+.unlock-sub    { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+.form-grid     { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form-field    { display: flex; flex-direction: column; gap: 5px; }
+.form-field label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.form-field input,
+.form-field select {
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 7px; padding: 9px 12px;
+  font-family: var(--mono); font-size: 12px; color: var(--text-hi);
+  outline: none; transition: border-color .2s; width: 100%;
+}
+.form-field input:focus,
+.form-field select:focus { border-color: var(--sama); }
+.form-field select option { background: var(--surface2); }
+.unlock-btn {
+  width: 100%; padding: 13px; background: var(--sama); color: #070b10;
+  border: none; border-radius: 8px; font-family: var(--mono); font-size: 13px;
+  font-weight: 700; cursor: pointer; transition: all .2s; letter-spacing: .02em;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.unlock-btn:hover:not(:disabled) { background: #33d6ff; box-shadow: 0 0 20px rgba(0,200,255,.25); }
+.unlock-btn:disabled { opacity: .45; cursor: not-allowed; }
+.form-note { font-family: var(--mono); font-size: 10px; color: var(--text-dim); text-align: center; letter-spacing: .04em; }
+
+/* ── Download state ── */
 #download-state {
   display: none; background: rgba(0,212,144,.06);
   border: 1px solid rgba(0,212,144,.2); border-radius: 12px;
@@ -614,11 +322,9 @@ main {
 .dl-title { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--gdpr); }
 .dl-sub   { font-size: 13px; color: var(--text-dim); max-width: 380px; line-height: 1.6; }
 #dl-btn {
-  background: var(--gdpr); color: #070b10;
-  border: none; border-radius: 8px; padding: 12px 28px;
-  font-family: var(--mono); font-size: 13px; font-weight: 700;
-  cursor: pointer; transition: all .2s;
-  display: flex; align-items: center; gap: 8px;
+  background: var(--gdpr); color: #070b10; border: none; border-radius: 8px;
+  padding: 12px 28px; font-family: var(--mono); font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 8px;
 }
 #dl-btn:hover { box-shadow: 0 0 20px rgba(0,212,144,.3); }
 #dl-btn:disabled { opacity: .5; }
@@ -640,30 +346,27 @@ main {
   .panel-left  { overflow-y: visible; }
   .panel-right { height: auto; overflow-y: visible; }
   #empty-state, #loading-state { height: 300px; }
-  .option-split { grid-template-columns: 1fr; }
+  .form-grid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
 <body>
 <div id="app">
 
-<!-- ── Header ── -->
 <header>
   <div class="h-logo">
     <div class="h-logo-mark">⚡</div>
     API Compliance Fixer
   </div>
   <div class="h-sep"></div>
-  <div class="h-pill">v7.0</div>
+  <div class="h-pill">v8.0</div>
 </header>
 
-<!-- ── Main ── -->
 <main>
 
   <!-- LEFT PANEL -->
   <div class="panel-left">
 
-    <!-- Upload -->
     <div class="panel-section" style="padding-top:24px">
       <div class="panel-label">01 — Upload</div>
       <div id="drop-zone" onclick="document.getElementById('file-input').click()">
@@ -679,38 +382,32 @@ main {
       <input type="file" id="file-input" accept=".json,.yaml,.yml">
     </div>
 
-    <!-- Framework selector -->
     <div class="panel-section">
       <div class="panel-label">02 — Select Frameworks</div>
-      <div class="fw-grid" id="fw-grid">
-        <!-- populated by JS -->
-      </div>
+      <div class="fw-grid" id="fw-grid"></div>
     </div>
 
-    <!-- Analyse -->
     <div class="panel-section" style="padding-bottom:24px">
       <div id="error-toast" class="error-toast"></div>
       <button class="analyse-btn" id="analyse-btn" onclick="runAnalysis()" disabled>
-        Analyse & Preview
+        Analyse &amp; Preview
       </button>
     </div>
 
-    <div class="left-footer">
-      Files processed in memory · never stored
-    </div>
-  </div><!-- end panel-left -->
+    <div class="left-footer">Files processed in memory · never stored</div>
+  </div>
 
   <!-- RIGHT PANEL -->
   <div class="panel-right">
 
-    <!-- Empty state -->
+    <!-- Empty -->
     <div id="empty-state">
       <div class="empty-icon">🛡</div>
       <div class="empty-title">Select a file and frameworks</div>
-      <div class="empty-sub">Upload a Postman collection or OpenAPI spec, choose one or more compliance frameworks, then click Analyse to see exactly what will be fixed.</div>
+      <div class="empty-sub">Upload a Postman collection or OpenAPI spec, choose your compliance frameworks, then click Analyse.</div>
     </div>
 
-    <!-- Loading state -->
+    <!-- Loading -->
     <div id="loading-state">
       <div class="loader-ring"></div>
       <div class="loader-label" id="loader-label">ANALYSING…</div>
@@ -719,138 +416,81 @@ main {
     <!-- Results -->
     <div id="results-state">
 
-      <!-- Summary cards -->
       <div class="summary-cards" id="summary-cards"></div>
-
-      <!-- Severity bar -->
-      <div class="sev-bar" id="sev-bar"></div>
-
-      <!-- Framework pills -->
+      <div class="sev-bar"        id="sev-bar"></div>
       <div class="fw-summary-row" id="fw-pills"></div>
 
-      <!-- Change list -->
       <div class="changes-section">
         <div class="changes-header">
           <div class="changes-title">Changes by Rule</div>
           <div class="filter-tabs" id="filter-tabs"></div>
         </div>
-        <div id="error-banner" class="error-toast" style="margin-bottom:10px"></div>
         <div class="change-list" id="change-list"></div>
       </div>
 
-            <!-- Dual-option CTA -->
-      <div id="cta-row">
-        <div class="cta-info">
-          <div class="cta-title" id="cta-title">Unlock your full compliance report</div>
-          <div class="cta-sub" id="cta-sub">Enter an access token if you have one, or request access and our team will reach out.</div>
+      <!-- Unlock form — hidden after submission -->
+      <div id="unlock-form-section">
+        <div class="unlock-header">
+          <div class="unlock-title">Unlock full report &amp; download</div>
+          <div class="unlock-sub">Leave your details to access the complete compliance report and download your fixed file. Free during the trial period.</div>
         </div>
-
-        <div class="option-split">
-
-          <!-- Option A: Have a token -->
-          <div class="option-card active" id="card-token">
-            <div class="option-header">
-              <span class="option-icon">🔑</span>
-              I have an access token
-            </div>
-            <div class="option-desc">
-              Paste the token our team sent you to unlock the full report and download your fixed file instantly.
-            </div>
-            <div class="opt-field">
-              <label>Access token</label>
-              <input type="text" id="token-input"
-                     placeholder="Paste your token here…"
-                     onkeydown="if(event.key==='Enter') redeemToken()">
-            </div>
-            <div id="redeem-error" class="error-toast"></div>
-            <button class="opt-btn primary" id="redeem-btn" onclick="redeemToken()">
-              🔓 Unlock & Download
-            </button>
+        <div class="form-grid">
+          <div class="form-field">
+            <label>Name *</label>
+            <input type="text" id="f-name" placeholder="Your name" autocomplete="name">
           </div>
-
-          <!-- Option B: Request access -->
-          <div class="option-card" id="card-request">
-            <div class="option-header">
-              <span class="option-icon">📋</span>
-              Request access
-            </div>
-            <div class="option-desc">
-              New here? Leave your details and our team will review your request and send you an access token.
-            </div>
-            <div class="opt-field">
-              <label>Name *</label>
-              <input type="text" id="tf-name" placeholder="Your name">
-            </div>
-            <div class="opt-field">
-              <label>Work email *</label>
-              <input type="email" id="tf-email" placeholder="you@company.com">
-            </div>
-            <div class="opt-field">
-              <label>Company</label>
-              <input type="text" id="tf-company" placeholder="Organisation">
-            </div>
-            <div class="opt-field">
-              <label>Role</label>
-              <input type="text" id="tf-role" placeholder="e.g. Security Engineer">
-            </div>
-            <div class="opt-field">
-              <label>How did you hear about this?</label>
-              <select id="tf-how">
-                <option value="">Select…</option>
-                <option value="linkedin">LinkedIn</option>
-                <option value="colleague">Colleague / referral</option>
-                <option value="github">GitHub</option>
-                <option value="search">Web search</option>
-                <option value="twitter">Twitter / X</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div class="opt-field">
-              <label>Use case (optional)</label>
-              <input type="text" id="tf-usecase" placeholder="e.g. SAMA OBAPI audit prep">
-            </div>
-            <div id="request-error" class="error-toast"></div>
-            <button class="opt-btn secondary" id="request-btn" onclick="submitRequest()">
-              ✉ Send Access Request
-            </button>
+          <div class="form-field">
+            <label>Work email *</label>
+            <input type="email" id="f-email" placeholder="you@company.com" autocomplete="email">
           </div>
-
-        </div><!-- end option-split -->
-
-        <!-- Success state (shown after request submitted) -->
-        <div class="success-banner" id="request-success">
-          <div class="success-banner-title">✓ Request received</div>
-          <div class="success-banner-sub">
-            Our team will review your submission and send an access token to your email shortly.
-            Once you receive it, paste it in the token field on the left.
+          <div class="form-field">
+            <label>Company</label>
+            <input type="text" id="f-company" placeholder="Organisation">
+          </div>
+          <div class="form-field">
+            <label>Role</label>
+            <input type="text" id="f-role" placeholder="e.g. Security Engineer">
+          </div>
+          <div class="form-field">
+            <label>How did you hear about this?</label>
+            <select id="f-how">
+              <option value="">Select…</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="colleague">Colleague / referral</option>
+              <option value="github">GitHub</option>
+              <option value="search">Web search</option>
+              <option value="twitter">Twitter / X</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Use case (optional)</label>
+            <input type="text" id="f-usecase" placeholder="e.g. SAMA OBAPI audit prep">
           </div>
         </div>
-
-      </div><!-- end cta-row -->
+        <div id="form-error" class="error-toast"></div>
+        <button class="unlock-btn" id="unlock-btn" onclick="submitUnlock()">
+          🔓 Unlock Full Report &amp; Download
+        </button>
+        <div class="form-note">🔒 Your details are used only for trial follow-up — never shared</div>
+      </div>
 
     </div><!-- end results-state -->
 
     <!-- Download state -->
     <div id="download-state">
       <div class="dl-icon">✅</div>
-      <div class="dl-title">Your file is ready</div>
-      <div class="dl-sub">Full compliance report unlocked. Your fixed file, changelog, and summary are ready. Files are never stored on our servers.</div>
-      <button id="dl-btn" onclick="downloadZip()">⬇ Download ZIP</button>
-    </div>
-      <div class="dl-title">Your file is ready</div>
-      <div class="dl-sub">Full compliance report unlocked. Your fixed file, changelog, and summary are ready. Files are processed in memory — never stored on our servers.</div>
+      <div class="dl-title">Full report unlocked</div>
+      <div class="dl-sub">Your compliant file, changelog, and summary are ready. Files are processed in memory and never stored on our servers.</div>
       <button id="dl-btn" onclick="downloadZip()">⬇ Download ZIP</button>
     </div>
 
   </div><!-- end panel-right -->
 
 </main>
-</div><!-- end app -->
+</div>
 
 <script>
-/* ══════════════════════════════════════════
-   STATE
-══════════════════════════════════════════ */
 const state = {
   file: null,
   filename: '',
@@ -872,9 +512,7 @@ const FRAMEWORKS = {
 const SEV_ORDER  = ['critical','high','medium','info'];
 const SEV_COLORS = { critical:'#ff4d4d', high:'#ff9500', medium:'#ffd000', info:'#4a6480' };
 
-/* ══════════════════════════════════════════
-   INIT
-══════════════════════════════════════════ */
+/* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
   buildFrameworkGrid();
   setupDrop();
@@ -883,9 +521,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-/* ══════════════════════════════════════════
-   FRAMEWORK GRID
-══════════════════════════════════════════ */
+/* ── Framework grid ── */
 function buildFrameworkGrid() {
   const grid = document.getElementById('fw-grid');
   grid.innerHTML = '';
@@ -894,42 +530,37 @@ function buildFrameworkGrid() {
     const card = document.createElement('div');
     card.className = 'fw-card' + (sel ? ' selected' : '');
     card.style.setProperty('--fw-color', fw.color);
-    card.dataset.fw = id;
     card.innerHTML = `
       <div class="fw-check">✓</div>
       <div class="fw-icon">${fw.icon}</div>
       <div class="fw-name">${fw.name}</div>
       <div class="fw-region">${fw.region}</div>
-      <div class="fw-rules" id="fw-rules-${id}"></div>`;
-    card.addEventListener('click', () => toggleFw(id, card));
+      <div class="fw-rules" id="fwr-${id}"></div>`;
+    card.addEventListener('click', () => {
+      if (state.selectedFrameworks.has(id)) {
+        if (state.selectedFrameworks.size === 1) return;
+        state.selectedFrameworks.delete(id);
+        card.classList.remove('selected');
+      } else {
+        state.selectedFrameworks.add(id);
+        card.classList.add('selected');
+      }
+      updateAnalyseBtn();
+    });
     grid.appendChild(card);
   });
   fetch('/api/frameworks').then(r => r.json()).then(data => {
     data.forEach(fw => {
-      const el = document.getElementById(`fw-rules-${fw.id}`);
+      const el = document.getElementById(`fwr-${fw.id}`);
       if (el) el.textContent = `${fw.rule_count} rules`;
     });
   }).catch(() => {});
 }
 
-function toggleFw(id, card) {
-  if (state.selectedFrameworks.has(id)) {
-    if (state.selectedFrameworks.size === 1) return;
-    state.selectedFrameworks.delete(id);
-    card.classList.remove('selected');
-  } else {
-    state.selectedFrameworks.add(id);
-    card.classList.add('selected');
-  }
-  updateAnalyseBtn();
-}
-
-/* ══════════════════════════════════════════
-   FILE HANDLING
-══════════════════════════════════════════ */
+/* ── File handling ── */
 function setupDrop() {
   const zone = document.getElementById('drop-zone');
-  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('over'); });
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('over'); });
   zone.addEventListener('dragleave', () => zone.classList.remove('over'));
   zone.addEventListener('drop', e => {
     e.preventDefault(); zone.classList.remove('over');
@@ -938,19 +569,20 @@ function setupDrop() {
 }
 
 function handleFile(file) {
-  const ok = file.name.endsWith('.json') || file.name.endsWith('.yaml') || file.name.endsWith('.yml');
-  if (!ok) { showError('Only .json, .yaml, or .yml files are accepted.'); return; }
+  if (!file.name.match(/\.(json|yaml|yml)$/)) {
+    showError('Only .json, .yaml, or .yml files are accepted.'); return;
+  }
   state.file = file; state.filename = file.name;
   document.getElementById('file-chip-name').textContent = file.name;
-  const fmt = file.name.endsWith('.json') ? 'JSON' : 'YAML';
-  document.getElementById('file-chip-fmt').textContent = `· ${fmt} · ${(file.size/1024).toFixed(1)} KB`;
+  document.getElementById('file-chip-fmt').textContent =
+    `· ${file.name.endsWith('.json') ? 'JSON' : 'YAML'} · ${(file.size/1024).toFixed(1)} KB`;
   document.getElementById('file-chip').classList.add('show');
   document.getElementById('dz-title').textContent = 'File loaded — ready to analyse';
   updateAnalyseBtn(); hideError();
 }
 
 function clearFile() {
-  state.file = null; state.filename = '';
+  state.file = null;
   document.getElementById('file-chip').classList.remove('show');
   document.getElementById('dz-title').textContent = 'Drop your API file here';
   document.getElementById('file-input').value = '';
@@ -962,17 +594,13 @@ function updateAnalyseBtn() {
     !(state.file && state.selectedFrameworks.size > 0);
 }
 
-/* ══════════════════════════════════════════
-   ANALYSIS
-══════════════════════════════════════════ */
+/* ── Analysis ── */
 async function runAnalysis() {
   if (!state.file) return;
   hideError(); showState('loading'); setLoaderLabel('UPLOADING…');
-
   const fd = new FormData();
   fd.append('file', state.file);
   fd.append('frameworks', [...state.selectedFrameworks].join(','));
-
   try {
     const res  = await fetch('/api/upload', { method: 'POST', body: fd });
     const data = await res.json();
@@ -987,13 +615,10 @@ async function runAnalysis() {
   }
 }
 
-/* ══════════════════════════════════════════
-   RENDER RESULTS
-══════════════════════════════════════════ */
+/* ── Render results ── */
 function renderResults(cl, unlocked) {
   const sev = cl.severity_summary || {};
 
-  // Stats
   document.getElementById('summary-cards').innerHTML = `
     <div class="s-card"><span class="s-num">${cl.total_changes}</span><div class="s-label">Changes</div></div>
     <div class="s-card"><span class="s-num" style="color:var(--critical)">${sev.critical||0}</span><div class="s-label">Critical</div></div>
@@ -1001,9 +626,9 @@ function renderResults(cl, unlocked) {
     <div class="s-card"><span class="s-num">${cl.changes_by_rule?.length||0}${cl.hidden_rules?'+':''}</span><div class="s-label">Rules</div></div>
     <div class="s-card"><span class="s-num">${cl.input_format==='postman'?'📮':'📄'}</span><div class="s-label">${cl.input_format==='postman'?'Postman':'OpenAPI'}</div></div>`;
 
-  // Severity bar
   const maxV = Math.max(1, ...SEV_ORDER.map(s => sev[s]||0));
-  document.getElementById('sev-bar').innerHTML = '<div class="sev-bar-title">Severity Distribution</div>' +
+  document.getElementById('sev-bar').innerHTML =
+    '<div class="sev-bar-title">Severity Distribution</div>' +
     SEV_ORDER.map(s => `
       <div class="sev-row">
         <div class="sev-dot" style="background:${SEV_COLORS[s]}"></div>
@@ -1012,65 +637,50 @@ function renderResults(cl, unlocked) {
         <div class="sev-count">${sev[s]||0}</div>
       </div>`).join('');
 
-  // Framework pills
-  document.getElementById('fw-pills').innerHTML = (cl.frameworks_detail||[]).map(fw => {
-    const m = FRAMEWORKS[fw.id] || {};
-    return `<div class="fw-pill">
-      <div class="fw-pill-dot" style="background:${m.color||'#888'}"></div>
-      ${fw.name}<span class="fw-pill-count">${fw.changes_made} changes</span>
-    </div>`;
-  }).join('');
+  document.getElementById('fw-pills').innerHTML =
+    (cl.frameworks_detail||[]).map(fw => {
+      const m = FRAMEWORKS[fw.id]||{};
+      return `<div class="fw-pill">
+        <div class="fw-pill-dot" style="background:${m.color||'#888'}"></div>
+        ${fw.name}<span class="fw-pill-count">${fw.changes_made} changes</span>
+      </div>`;
+    }).join('');
 
-  // Filter tabs
   const fws = [...new Set((cl.changes_by_rule||[]).map(r => r.rule_id.split('-')[0]))];
   document.getElementById('filter-tabs').innerHTML =
     `<button class="filter-tab active" onclick="filterChanges('all',this)">All</button>` +
     fws.map(fw => `<button class="filter-tab" onclick="filterChanges('${fw}',this)">${fw}</button>`).join('');
 
   state.activeFilter = 'all';
-  renderChangeList(cl.changes_by_rule || [], cl.hidden_rules || 0, unlocked);
-
-  // CTA copy
-  const fwLbl = [...state.selectedFrameworks].map(f => FRAMEWORKS[f]?.name || f).join(' + ');
-  document.getElementById('cta-title').textContent = unlocked
-    ? `${cl.total_changes} fixes ready — ${fwLbl}`
-    : `${cl.total_changes} issues found — unlock to see full report`;
-  document.getElementById('cta-sub').textContent = unlocked
-    ? `${cl.collection_name} · ${cl.input_format} · full report unlocked`
-    : `${cl.collection_name} · ${cl.input_format} · enter your token or request access below`;
+  renderChangeList(cl.changes_by_rule||[], cl.hidden_rules||0, unlocked);
 }
 
 function filterChanges(fw, btn) {
-  state.activeFilter = fw;
   document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
   const cl = state.fullChangelog || state.changelog;
-  const rules = cl?.changes_by_rule || [];
-  const filtered = fw === 'all' ? rules : rules.filter(r => r.rule_id.startsWith(fw));
-  const hidden = fw === 'all' ? (cl?.hidden_rules || 0) : 0;
-  renderChangeList(filtered, hidden, !!state.fullChangelog);
+  const rules = cl?.changes_by_rule||[];
+  const filtered = fw==='all' ? rules : rules.filter(r => r.rule_id.startsWith(fw));
+  renderChangeList(filtered, fw==='all' ? (cl?.hidden_rules||0) : 0, !!state.fullChangelog);
 }
 
 function renderChangeList(rules, hiddenCount, unlocked) {
-  const list = document.getElementById('change-list');
-
   const cards = rules.map((rule, i) => {
-    const fwId     = rule.rule_id.split('-')[0];
-    const color    = FRAMEWORKS[fwId]?.color || '#888';
-    const sevColor = SEV_COLORS[rule.severity] || '#888';
-    const count    = rule.affected_requests?.length || 0;
+    const fwId  = rule.rule_id.split('-')[0];
+    const color = FRAMEWORKS[fwId]?.color||'#888';
+    const sev   = SEV_COLORS[rule.severity]||'#888';
     return `
     <div class="change-card" id="cc-${i}">
-      <div class="change-header" onclick="toggleCard('cc-${i}')">
-        <div class="change-sev-dot" style="background:${sevColor}"></div>
+      <div class="change-header" onclick="this.closest('.change-card').classList.toggle('open')">
+        <div class="change-sev-dot" style="background:${sev}"></div>
         <div class="change-rule-id" style="color:${color};background:color-mix(in srgb,${color} 12%,transparent);border:1px solid color-mix(in srgb,${color} 25%,transparent)">${rule.rule_id}</div>
         <div class="change-title">${rule.rule_title}</div>
-        <div class="change-count">${count} req</div>
+        <div class="change-count">${rule.affected_requests?.length||0} req</div>
         <div class="change-chevron">▾</div>
       </div>
       <div class="change-ref">${rule.reference}</div>
       <div class="change-body">
-        ${(rule.affected_requests||[]).map(r => `
+        ${(rule.affected_requests||[]).map(r=>`
           <div class="change-req-item">
             <div class="change-req-name" title="${r.request}">${r.request}</div>
             <div class="change-req-detail">${r.detail}</div>
@@ -1104,123 +714,59 @@ function renderChangeList(rules, hiddenCount, unlocked) {
         <div class="locked-badge-inner">
           <div class="locked-icon">🔐</div>
           <div class="locked-label">${hiddenCount} more rule${hiddenCount!==1?'s':''} hidden</div>
-          <div class="locked-sub">Enter your token or request access below</div>
+          <div class="locked-sub">Fill in the form below to unlock</div>
         </div>
       </div>
     </div>` : '';
 
-  list.innerHTML = cards + locked;
+  document.getElementById('change-list').innerHTML = cards + locked;
 }
 
-function toggleCard(id) { document.getElementById(id).classList.toggle('open'); }
+/* ── Unlock form ── */
+async function submitUnlock() {
+  const name  = document.getElementById('f-name').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  if (!name)  { showFormError('Name is required.'); return; }
+  if (!email || !email.includes('@')) { showFormError('A valid email address is required.'); return; }
+  hideFormError();
 
-/* ══════════════════════════════════════════
-   OPTION A — TOKEN REDEMPTION
-══════════════════════════════════════════ */
-async function redeemToken() {
-  const tokenVal = document.getElementById('token-input').value.trim();
-  if (!tokenVal) {
-    showInlineError('redeem-error', 'Please paste your access token.');
-    return;
-  }
-  if (!state.uploadToken) {
-    showInlineError('redeem-error', 'No file uploaded — please upload a file first.');
-    return;
-  }
-
-  const btn = document.getElementById('redeem-btn');
-  btn.disabled = true; btn.innerHTML = '<span class="spin">⟳</span> Verifying…';
-  hideInlineError('redeem-error');
-
-  const fd = new FormData();
-  fd.append('access_token', tokenVal);
-  fd.append('upload_token',  state.uploadToken);
-
-  try {
-    const res  = await fetch('/api/redeem', { method: 'POST', body: fd });
-    const data = await res.json();
-
-    if (!res.ok) {
-      showInlineError('redeem-error', data.detail || 'Invalid token.');
-      btn.disabled = false; btn.innerHTML = '🔓 Unlock & Download';
-      return;
-    }
-
-    state.fullChangelog = data.changelog;
-    state.downloadToken = data.download_token;
-    renderResults(data.changelog, true);
-
-    // Hide CTA, show download
-    document.getElementById('cta-row').style.display = 'none';
-    showDownload();
-
-  } catch {
-    showInlineError('redeem-error', 'Network error — please try again.');
-    btn.disabled = false; btn.innerHTML = '🔓 Unlock & Download';
-  }
-}
-
-/* ══════════════════════════════════════════
-   OPTION B — REQUEST ACCESS
-══════════════════════════════════════════ */
-async function submitRequest() {
-  if (!state.uploadToken) {
-    showInlineError('request-error', 'No file uploaded — please upload a file first.');
-    return;
-  }
-
-  const name  = document.getElementById('tf-name').value.trim();
-  const email = document.getElementById('tf-email').value.trim();
-  if (!name)  { showInlineError('request-error', 'Name is required.'); return; }
-  if (!email || !email.includes('@')) {
-    showInlineError('request-error', 'A valid email is required.'); return;
-  }
-  hideInlineError('request-error');
-
-  const btn = document.getElementById('request-btn');
-  btn.disabled = true; btn.innerHTML = '<span class="spin">⟳</span> Sending…';
+  const btn = document.getElementById('unlock-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> Unlocking…';
 
   const fd = new FormData();
   fd.append('upload_token', state.uploadToken);
   fd.append('name',         name);
   fd.append('email',        email);
-  fd.append('company',      document.getElementById('tf-company').value.trim());
-  fd.append('role',         document.getElementById('tf-role').value.trim());
-  fd.append('how_heard',    document.getElementById('tf-how').value);
-  fd.append('use_case',     document.getElementById('tf-usecase').value.trim());
+  fd.append('company',      document.getElementById('f-company').value.trim());
+  fd.append('role',         document.getElementById('f-role').value.trim());
+  fd.append('how_heard',    document.getElementById('f-how').value);
+  fd.append('use_case',     document.getElementById('f-usecase').value.trim());
 
   try {
-    const res  = await fetch('/api/request-access', { method: 'POST', body: fd });
+    const res  = await fetch('/api/unlock', { method: 'POST', body: fd });
     const data = await res.json();
-
     if (!res.ok) {
-      showInlineError('request-error', data.detail || 'Submission failed.');
-      btn.disabled = false; btn.innerHTML = '✉ Send Access Request';
+      showFormError(data.detail || 'Submission failed. Please try again.');
+      btn.disabled = false; btn.innerHTML = '🔓 Unlock Full Report & Download';
       return;
     }
-
-    // Show success
-    document.getElementById('card-request').style.opacity = '.5';
-    document.getElementById('card-request').style.pointerEvents = 'none';
-    document.getElementById('request-success').style.display = 'block';
-    btn.innerHTML = '✓ Request sent';
-
-    // Highlight the token input to signal: now wait for token
-    document.getElementById('card-token').style.borderColor = 'var(--sama)';
-    document.getElementById('card-token').style.boxShadow = '0 0 0 1px var(--sama)';
-    document.getElementById('token-input').focus();
-
+    state.fullChangelog  = data.changelog;
+    state.downloadToken  = data.download_token;
+    renderResults(data.changelog, true);
+    document.getElementById('unlock-form-section').style.display = 'none';
+    showDownload();
   } catch {
-    showInlineError('request-error', 'Network error — please try again.');
-    btn.disabled = false; btn.innerHTML = '✉ Send Access Request';
+    showFormError('Network error — please try again.');
+    btn.disabled = false; btn.innerHTML = '🔓 Unlock Full Report & Download';
   }
 }
 
-/* ══════════════════════════════════════════
-   DOWNLOAD
-══════════════════════════════════════════ */
+/* ── Download ── */
 function showDownload() {
-  showState('download');
+  // Append download state inside results panel (don't switch away — results still visible above)
+  document.getElementById('download-state').style.display = 'flex';
+  document.getElementById('download-state').scrollIntoView({ behavior: 'smooth', block: 'center' });
   setTimeout(downloadZip, 800);
 }
 
@@ -1230,7 +776,7 @@ async function downloadZip() {
   btn.disabled = true; btn.textContent = '⟳ Preparing…';
   try {
     const res = await fetch(`/api/download/${state.downloadToken}`);
-    if (!res.ok) { showBannerError('Download link expired or already used.'); return; }
+    if (!res.ok) return;
     const blob = await res.blob();
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
@@ -1244,32 +790,27 @@ async function downloadZip() {
   }
 }
 
-/* ══════════════════════════════════════════
-   UI HELPERS
-══════════════════════════════════════════ */
+/* ── UI helpers ── */
 function showState(s) {
-  ['empty-state','loading-state','results-state','download-state'].forEach(id => {
-    document.getElementById(id).style.display = (id === s+'-state') ? 'flex' : 'none';
+  ['empty','loading','results'].forEach(id => {
+    document.getElementById(id+'-state').style.display =
+      id===s ? 'flex' : 'none';
   });
+  if (s !== 'results') {
+    document.getElementById('download-state').style.display = 'none';
+  }
 }
 function setLoaderLabel(t) { document.getElementById('loader-label').textContent = t; }
 function showError(msg) {
   const el = document.getElementById('error-toast');
-  el.textContent = '⚠ ' + msg; el.style.display = 'block';
+  el.textContent = '⚠ '+msg; el.style.display = 'block';
 }
 function hideError() { document.getElementById('error-toast').style.display = 'none'; }
-function showBannerError(msg) {
-  const el = document.getElementById('error-banner');
-  if (el) { el.textContent = '⚠ ' + msg; el.style.display = 'block'; }
+function showFormError(msg) {
+  const el = document.getElementById('form-error');
+  el.textContent = '⚠ '+msg; el.style.display = 'block';
 }
-function showInlineError(id, msg) {
-  const el = document.getElementById(id);
-  if (el) { el.textContent = '⚠ ' + msg; el.style.display = 'block'; }
-}
-function hideInlineError(id) {
-  const el = document.getElementById(id);
-  if (el) el.style.display = 'none';
-}
+function hideFormError() { document.getElementById('form-error').style.display = 'none'; }
 </script>
 </body>
 </html>
