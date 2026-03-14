@@ -486,15 +486,13 @@ main {
 }
 .change-req-detail { color: var(--text-dim); line-height: 1.5; }
 
-/* ── Pay CTA ── */
+/* ── Trial CTA ── */
 #cta-row {
-  display: flex; align-items: center;
-  justify-content: space-between;
-  gap: 16px; flex-wrap: wrap;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px 24px;
+  display: flex; flex-direction: column; gap: 16px;
 }
 .cta-info { display: flex; flex-direction: column; gap: 4px; }
 .cta-title {
@@ -502,20 +500,45 @@ main {
   color: var(--text-hi);
 }
 .cta-sub { font-size: 12px; color: var(--text-dim); }
-#pay-btn {
+
+/* Trial form */
+.trial-form { display: flex; flex-direction: column; gap: 12px; }
+.trial-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.trial-field { display: flex; flex-direction: column; gap: 5px; }
+.trial-field label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.trial-field input,
+.trial-field select,
+.trial-field textarea {
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 7px; padding: 9px 12px;
+  font-family: var(--mono); font-size: 12px; color: var(--text-hi);
+  outline: none; transition: border-color .2s; width: 100%;
+}
+.trial-field input:focus,
+.trial-field select:focus,
+.trial-field textarea:focus { border-color: var(--sama); }
+.trial-field select option { background: var(--surface2); }
+.trial-field textarea { resize: vertical; min-height: 68px; }
+.trial-submit {
+  width: 100%; padding: 13px;
   background: var(--sama); color: #070b10;
   border: none; border-radius: 8px;
-  padding: 12px 28px;
   font-family: var(--mono); font-size: 13px; font-weight: 700;
-  cursor: pointer; transition: all .2s;
-  display: flex; align-items: center; gap: 8px;
-  white-space: nowrap; flex-shrink: 0;
+  cursor: pointer; transition: all .2s; letter-spacing: .02em;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
 }
-#pay-btn:hover:not(:disabled) {
+.trial-submit:hover:not(:disabled) {
   background: #33d6ff;
   box-shadow: 0 0 20px rgba(0,200,255,.25);
 }
-#pay-btn:disabled { opacity: .5; cursor: not-allowed; }
+.trial-submit:disabled { opacity: .45; cursor: not-allowed; }
+.trial-note {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--text-dim); text-align: center; letter-spacing: .04em;
+}
 
 /* ── Download state ── */
 #download-state {
@@ -558,83 +581,6 @@ main {
 /* ── Utility ── */
 .spin { animation: spin .7s linear infinite; display: inline-block; }
 
-/* ── Payment picker ── */
-.pay-picker {
-  display: flex; flex-direction: column; gap: 10px;
-  flex-shrink: 0;
-}
-
-.pay-method-row {
-  display: flex; gap: 8px;
-}
-
-.pay-method-btn {
-  flex: 1;
-  display: flex; align-items: center; justify-content: center; gap: 7px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1.5px solid var(--border2);
-  background: var(--surface2);
-  font-family: var(--mono); font-size: 12px; font-weight: 600;
-  color: var(--text-dim);
-  cursor: pointer;
-  transition: all .18s;
-  white-space: nowrap;
-}
-.pay-method-btn:hover:not(:disabled) {
-  border-color: var(--text-dim);
-  color: var(--text-hi);
-  background: var(--surface3);
-}
-.pay-method-btn.active {
-  border-color: var(--pm-color);
-  color: var(--text-hi);
-  background: color-mix(in srgb, var(--pm-color) 10%, var(--surface2));
-  box-shadow: 0 0 0 1px var(--pm-color);
-}
-.pay-method-btn:disabled { opacity: .4; cursor: not-allowed; }
-
-/* Stripe blue */
-.pay-method-btn[data-provider="stripe"] { --pm-color: #6772e5; }
-/* PayPal gold */
-.pay-method-btn[data-provider="paypal"] { --pm-color: #f5a623; }
-
-.pay-method-icon {
-  font-size: 15px; line-height: 1;
-}
-.pay-method-label { letter-spacing: .03em; }
-
-.pay-go-btn {
-  width: 100%;
-  padding: 12px;
-  border: none; border-radius: 8px;
-  font-family: var(--mono); font-size: 13px; font-weight: 700;
-  cursor: pointer; transition: all .2s;
-  display: flex; align-items: center; justify-content: center; gap: 9px;
-  letter-spacing: .02em;
-}
-.pay-go-btn.stripe-active {
-  background: #6772e5; color: #fff;
-}
-.pay-go-btn.stripe-active:hover:not(:disabled) {
-  background: #7c85f0;
-  box-shadow: 0 0 20px rgba(103,114,229,.35);
-}
-.pay-go-btn.paypal-active {
-  background: #f5a623; color: #070b10;
-}
-.pay-go-btn.paypal-active:hover:not(:disabled) {
-  background: #f7b84a;
-  box-shadow: 0 0 20px rgba(245,166,35,.35);
-}
-.pay-go-btn:disabled { opacity: .45; cursor: not-allowed; }
-
-.pay-secure-note {
-  font-family: var(--mono); font-size: 10px;
-  color: var(--text-dim); text-align: center;
-  letter-spacing: .04em;
-}
-
 /* ── Responsive ── */
 @media (max-width: 900px) {
   main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; overflow: visible; }
@@ -642,7 +588,6 @@ main {
   .panel-right { height: auto; overflow-y: visible; }
   #empty-state, #loading-state { height: 300px; }
   #cta-row { flex-direction: column; align-items: stretch; }
-  .pay-picker { width: 100%; }
 }
 </style>
 </head>
@@ -656,7 +601,7 @@ main {
     API Compliance Fixer
   </div>
   <div class="h-sep"></div>
-  <div class="h-pill">v3.0</div>
+  <div class="h-pill">Trial</div>
 </header>
 
 <!-- ── Main ── -->
@@ -740,29 +685,57 @@ main {
         <div class="change-list" id="change-list"></div>
       </div>
 
-      <!-- Pay CTA -->
+      <!-- Trial CTA -->
       <div id="cta-row">
         <div class="cta-info">
-          <div class="cta-title" id="cta-title">Ready to apply fixes</div>
-          <div class="cta-sub" id="cta-sub">Review the changes above, then pay to download your compliant file.</div>
+          <div class="cta-title" id="cta-title">Get your fixed file — free</div>
+          <div class="cta-sub" id="cta-sub">Leave your details and download instantly. No payment required during the trial.</div>
         </div>
 
-        <!-- Payment picker -->
-        <div class="pay-picker">
-          <div class="pay-method-row">
-            <button class="pay-method-btn active" data-provider="stripe" onclick="selectProvider('stripe', this)">
-              <span class="pay-method-icon">💳</span>
-              <span class="pay-method-label">Card / Stripe</span>
-            </button>
-            <button class="pay-method-btn" data-provider="paypal" onclick="selectProvider('paypal', this)">
-              <span class="pay-method-icon">🅿</span>
-              <span class="pay-method-label">PayPal</span>
-            </button>
+        <div class="trial-form" id="trial-form">
+          <div class="trial-row">
+            <div class="trial-field">
+              <label>Name *</label>
+              <input type="text" id="tf-name" placeholder="Your name" autocomplete="name">
+            </div>
+            <div class="trial-field">
+              <label>Work email *</label>
+              <input type="email" id="tf-email" placeholder="you@company.com" autocomplete="email">
+            </div>
           </div>
-          <button class="pay-go-btn stripe-active" id="pay-go-btn" onclick="startPayment()">
-            Pay $29 with Card
+          <div class="trial-row">
+            <div class="trial-field">
+              <label>Company</label>
+              <input type="text" id="tf-company" placeholder="Organisation name">
+            </div>
+            <div class="trial-field">
+              <label>Role</label>
+              <input type="text" id="tf-role" placeholder="e.g. Security Engineer">
+            </div>
+          </div>
+          <div class="trial-row">
+            <div class="trial-field">
+              <label>How did you hear about this?</label>
+              <select id="tf-how">
+                <option value="">Select…</option>
+                <option value="linkedin">LinkedIn</option>
+                <option value="colleague">Colleague / referral</option>
+                <option value="github">GitHub</option>
+                <option value="search">Web search</option>
+                <option value="twitter">Twitter / X</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="trial-field">
+              <label>Use case (optional)</label>
+              <input type="text" id="tf-usecase" placeholder="e.g. SAMA OBAPI audit prep">
+            </div>
+          </div>
+          <div id="error-banner" class="error-toast"></div>
+          <button class="trial-submit" id="trial-submit-btn" onclick="submitTrial()">
+            ⬇ Get My Fixed File
           </button>
-          <div class="pay-secure-note">🔒 Secure checkout · No card data touches our servers</div>
+          <div class="trial-note">🔒 Your details are used only to follow up on pricing — never shared</div>
         </div>
       </div>
 
@@ -771,8 +744,8 @@ main {
     <!-- Download state -->
     <div id="download-state">
       <div class="dl-icon">✅</div>
-      <div class="dl-title">Payment confirmed</div>
-      <div class="dl-sub">Your compliant file and changelog are ready. This link is one-time use — files are not stored on our servers.</div>
+      <div class="dl-title">Your file is ready</div>
+      <div class="dl-sub">Your compliant file, changelog, and summary are ready to download. Files are processed in memory — never stored on our servers.</div>
       <button id="dl-btn" onclick="downloadZip()">⬇ Download ZIP</button>
     </div>
 
@@ -815,9 +788,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('file-input').addEventListener('change', e => {
     if (e.target.files[0]) handleFile(e.target.files[0]);
   });
-  // Check for post-payment redirect
+  // Check for any redirect with a download token
   const params = new URLSearchParams(location.search);
-  if (params.get('success') === '1' && params.get('download_token')) {
+  if (params.get('download_token')) {
     state.downloadToken = params.get('download_token');
     history.replaceState({}, '', '/');
     showDownload();
@@ -1035,67 +1008,54 @@ function toggleCard(id) {
 }
 
 /* ══════════════════════════════════════════
-   PAYMENT — DUAL PROVIDER
+   TRIAL FORM SUBMISSION
 ══════════════════════════════════════════ */
-let selectedProvider = 'stripe';
-
-function selectProvider(provider, btnEl) {
-  selectedProvider = provider;
-
-  // Update method button active state
-  document.querySelectorAll('.pay-method-btn').forEach(b => b.classList.remove('active'));
-  btnEl.classList.add('active');
-
-  // Update go-button label + colour class
-  const goBtn = document.getElementById('pay-go-btn');
-  goBtn.className = 'pay-go-btn ' + (provider === 'stripe' ? 'stripe-active' : 'paypal-active');
-  goBtn.innerHTML = provider === 'stripe'
-    ? 'Pay $29 with Card'
-    : '<span style="font-size:15px">🅿</span> Pay $29 with PayPal';
-}
-
-async function startPayment() {
+async function submitTrial() {
   if (!state.uploadToken) return;
 
-  const goBtn = document.getElementById('pay-go-btn');
-  const origHtml = goBtn.innerHTML;
-  goBtn.disabled = true;
-  goBtn.innerHTML = '<span class="spin">⟳</span> Connecting…';
+  const name    = document.getElementById('tf-name').value.trim();
+  const email   = document.getElementById('tf-email').value.trim();
+  const company = document.getElementById('tf-company').value.trim();
+  const role    = document.getElementById('tf-role').value.trim();
+  const how     = document.getElementById('tf-how').value;
+  const usecase = document.getElementById('tf-usecase').value.trim();
 
-  // Disable method switchers while in flight
-  document.querySelectorAll('.pay-method-btn').forEach(b => b.disabled = true);
+  if (!name) { showBannerError('Please enter your name.'); return; }
+  if (!email || !email.includes('@')) { showBannerError('Please enter a valid email address.'); return; }
+
+  hideBannerError();
+  const btn = document.getElementById('trial-submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> Getting your file…';
+
+  const body = new FormData();
+  body.append('upload_token', state.uploadToken);
+  body.append('name',         name);
+  body.append('email',        email);
+  body.append('company',      company);
+  body.append('role',         role);
+  body.append('how_heard',    how);
+  body.append('use_case',     usecase);
 
   try {
-    const endpoint = `/api/checkout/${selectedProvider}/${state.uploadToken}`;
-    const res = await fetch(endpoint, { method: 'POST' });
+    const res  = await fetch('/api/trial', { method: 'POST', body });
     const data = await res.json();
 
     if (!res.ok) {
-      showBannerError(data.detail || `${selectedProvider} checkout failed.`);
-      _resetPayBtn(goBtn, origHtml);
+      showBannerError(data.detail || 'Submission failed. Please try again.');
+      btn.disabled = false;
+      btn.innerHTML = '⬇ Get My Fixed File';
       return;
     }
 
-    // Both providers return a URL to redirect to
-    const redirectUrl = data.checkout_url || data.approve_url;
-    if (!redirectUrl) {
-      showBannerError('No redirect URL returned from payment provider.');
-      _resetPayBtn(goBtn, origHtml);
-      return;
-    }
-
-    window.location.href = redirectUrl;
+    state.downloadToken = data.download_token;
+    showDownload();
 
   } catch (err) {
-    showBannerError('Network error — payment service unreachable.');
-    _resetPayBtn(goBtn, origHtml);
+    showBannerError('Network error — please try again.');
+    btn.disabled = false;
+    btn.innerHTML = '⬇ Get My Fixed File';
   }
-}
-
-function _resetPayBtn(btn, origHtml) {
-  btn.disabled = false;
-  btn.innerHTML = origHtml;
-  document.querySelectorAll('.pay-method-btn').forEach(b => b.disabled = false);
 }
 
 /* ══════════════════════════════════════════
@@ -1155,6 +1115,10 @@ function hideError() {
 function showBannerError(msg) {
   const el = document.getElementById('error-banner');
   el.textContent = '⚠ ' + msg; el.style.display = 'block';
+}
+function hideBannerError() {
+  const el = document.getElementById('error-banner');
+  el.style.display = 'none';
 }
 </script>
 </body>
