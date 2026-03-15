@@ -757,6 +757,18 @@ async function redeemToken() {
 }
 
 /* ══════════════════════════════════════════
+   TOKEN GENERATION
+   Works in HTTP and HTTPS contexts.
+   crypto.getRandomValues() is available everywhere;
+   crypto.randomUUID() requires HTTPS (secure context only).
+══════════════════════════════════════════ */
+function generateToken() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+/* ══════════════════════════════════════════
    OPTION B — REQUEST ACCESS
 ══════════════════════════════════════════ */
 async function submitRequest() {
@@ -771,8 +783,10 @@ async function submitRequest() {
   }
   hideInlineErr('request-error');
 
-  // Generate token client-side — cryptographically secure UUID
-  const accessToken = crypto.randomUUID();
+  // Generate token client-side.
+  // crypto.randomUUID() requires HTTPS — use getRandomValues() fallback
+  // which works in both HTTP and HTTPS contexts.
+  const accessToken = generateToken();
 
   const btn = document.getElementById('request-btn');
   btn.disabled=true; btn.innerHTML='<span class="spin">⟳</span> Sending…';
