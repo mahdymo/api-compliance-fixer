@@ -1,12 +1,17 @@
 """
-API Compliance Fixer — FastAPI Backend v8
+API Compliance Fixer — FastAPI Backend v9
 Flow:
-  1. Upload file → redacted preview (2 rules shown, rest locked)
-  2. Submit feedback form → Google Forms logged → full results + download unlocked
-  No tokens, no email, no admin page.
+  1. Upload → redacted preview
+  2a. Request access: browser generates token → POST /api/request-access
+      → sha256(token) stored + submitted to Google Form (with token)
+      → team sends token to user manually
+  2b. Redeem: user pastes token → POST /api/redeem
+      → sha256 compared → full changelog + download token issued
+  3. Support: POST /api/support → Google support form
 """
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import os
@@ -32,29 +37,39 @@ BASE_URL         = os.getenv("BASE_URL", "http://localhost:8000")
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 VALID_FRAMEWORKS = set(FRAMEWORK_META.keys())
 
-# Google Forms
+# ── Access request form ────────────────────────────────────────────────────────
 GFORM_URL        = os.getenv("GFORM_URL", "")
-GFORM_NAME       = os.getenv("GFORM_NAME",       "entry.000000001")
-GFORM_EMAIL      = os.getenv("GFORM_EMAIL",      "entry.000000002")
-GFORM_COMPANY    = os.getenv("GFORM_COMPANY",    "entry.000000003")
-GFORM_ROLE       = os.getenv("GFORM_ROLE",       "entry.000000004")
-GFORM_HOW_HEARD  = os.getenv("GFORM_HOW_HEARD",  "entry.000000005")
-GFORM_USE_CASE   = os.getenv("GFORM_USE_CASE",   "entry.000000006")
-GFORM_COLLECTION = os.getenv("GFORM_COLLECTION", "entry.000000007")
-GFORM_FRAMEWORKS = os.getenv("GFORM_FRAMEWORKS", "entry.000000008")
-GFORM_CHANGES    = os.getenv("GFORM_CHANGES",    "entry.000000009")
-GFORM_FORMAT     = os.getenv("GFORM_FORMAT",     "entry.000000010")
-GFORM_TIMESTAMP  = os.getenv("GFORM_TIMESTAMP",  "entry.000000011")
+GFORM_NAME       = os.getenv("GFORM_NAME",       "entry.1810443692")
+GFORM_EMAIL      = os.getenv("GFORM_EMAIL",      "entry.1282272068")
+GFORM_COMPANY    = os.getenv("GFORM_COMPANY",    "entry.2083451802")
+GFORM_ROLE       = os.getenv("GFORM_ROLE",       "entry.1171016044")
+GFORM_HOW_HEARD  = os.getenv("GFORM_HOW_HEARD",  "entry.518972485")
+GFORM_USE_CASE   = os.getenv("GFORM_USE_CASE",   "entry.1483517663")
+GFORM_COLLECTION = os.getenv("GFORM_COLLECTION", "entry.733773756")
+GFORM_FRAMEWORKS = os.getenv("GFORM_FRAMEWORKS", "entry.902499515")
+GFORM_CHANGES    = os.getenv("GFORM_CHANGES",    "entry.1152321901")
+GFORM_FORMAT     = os.getenv("GFORM_FORMAT",     "entry.1848111736")
+GFORM_TIMESTAMP  = os.getenv("GFORM_TIMESTAMP",  "entry.47021805")
+GFORM_TOKEN      = os.getenv("GFORM_TOKEN",      "entry.1662570945")
+
+# ── Support form ───────────────────────────────────────────────────────────────
+GFORM_SUPPORT_URL   = os.getenv("GFORM_SUPPORT_URL",   "")
+GFORM_SUPPORT_EMAIL = os.getenv("GFORM_SUPPORT_EMAIL", "entry.568404855")
+GFORM_SUPPORT_QUERY = os.getenv("GFORM_SUPPORT_QUERY", "entry.584910034")
 
 # ── In-memory stores ───────────────────────────────────────────────────────────
 # upload_token  → { raw, filename, frameworks, format, changelog }
 pending_uploads: dict[str, dict] = {}
-# download_token → { raw, filename, frameworks, format }
-# Single-use. Issued immediately on form submission.
+
+# token_hash → { email, name, created_at, use_count }
+# sha256(raw_token) stored — raw token never held server-side
+access_hashes: dict[str, dict] = {}
+
+# download_token → entry  (single-use)
 download_tokens: dict[str, dict] = {}
 
 # ── App ────────────────────────────────────────────────────────────────────────
-app = FastAPI(title="API Compliance Fixer", version="8.0.0")
+app = FastAPI(title="API Compliance Fixer", version="9.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
@@ -66,6 +81,9 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 # ═══════════════════════════════════════════════════════════════════════════════
 # HELPERS
 # ═══════════════════════════════════════════════════════════════════════════════
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.strip().encode()).hexdigest()
 
 def _parse_frameworks(s: str) -> list[str]:
     ids = [f.strip().upper() for f in s.split(",") if f.strip()]
@@ -110,23 +128,37 @@ def _redact_changelog(changelog: dict, preview_rules: int = 2) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# GOOGLE FORMS
+# GOOGLE FORMS HELPERS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-async def _submit_to_gform(data: dict) -> None:
-    """Fire-and-forget. Never raises — form failure must not block the user."""
-    if not GFORM_URL:
-        print(f"[GFORM] Not configured. Submission: {json.dumps(data)}")
-        return
+def _build_how_heard_fields(how_heard_raw: str, entry_key: str) -> dict:
+    """
+    Map a how_heard value to the correct Google Forms field(s).
+    Handles the __other_option__ mechanism for Twitter/X and Other.
+    """
+    HOW_HEARD_MAP = {
+        "linkedin":  "LinkedIn",
+        "colleague": "Colleague / referral",
+        "github":    "GitHub",
+        "search":    "Web search",
+    }
+    how = how_heard_raw.strip().lower()
+    if how in HOW_HEARD_MAP:
+        return {entry_key: HOW_HEARD_MAP[how]}
+    elif how:
+        label = {"twitter": "Twitter / X", "other": "Other"}.get(how, how_heard_raw)
+        return {
+            entry_key: "__other_option__",
+            entry_key + ".other_option_response": label,
+        }
+    return {}   # blank — omit key entirely
 
-    # Google Forms dropdown quirks:
-    # 1. "Twitter / X" — the slash causes a 400; route through __other_option__
-    # 2. "other" — the form has an "Other:" free-text option; must use the
-    #    __other_option__ + .other_option_response mechanism
-    # 3. Known safe values that match the form options exactly:
-    #    LinkedIn | Colleague / referral | GitHub | Web search
-    SAFE_OPTIONS = {"linkedin", "colleague", "github", "search"}
-    how_heard    = data.get("how_heard", "").strip().lower()
+
+async def _submit_access_form(data: dict) -> None:
+    """Submit to the access request Google Form. Fire-and-forget."""
+    if not GFORM_URL:
+        print(f"[GFORM] Not configured. Data: {json.dumps({k:v for k,v in data.items() if k != 'token'})}")
+        return
 
     payload: dict[str, str] = {
         GFORM_NAME:       data.get("name", ""),
@@ -139,54 +171,56 @@ async def _submit_to_gform(data: dict) -> None:
         GFORM_CHANGES:    str(data.get("total_changes", "")),
         GFORM_FORMAT:     data.get("format", ""),
         GFORM_TIMESTAMP:  data.get("timestamp", ""),
+        GFORM_TOKEN:      data.get("token", ""),
     }
-
-    # Map how_heard to the exact form option or the Other mechanism
-    HOW_HEARD_MAP = {
-        "linkedin":   "LinkedIn",
-        "colleague":  "Colleague / referral",
-        "github":     "GitHub",
-        "search":     "Web search",
-    }
-
-    if how_heard in HOW_HEARD_MAP:
-        # Exact match — send the option label directly
-        payload[GFORM_HOW_HEARD] = HOW_HEARD_MAP[how_heard]
-    elif how_heard in ("twitter", "other") or how_heard:
-        # Twitter/X and "other" both use the free-text Other mechanism
-        # Also catches any unexpected value safely
-        label = {
-            "twitter": "Twitter / X",
-            "other":   "Other",
-        }.get(how_heard, how_heard)
-        payload[GFORM_HOW_HEARD] = "__other_option__"
-        payload[GFORM_HOW_HEARD + ".other_option_response"] = label
-    # else: how_heard is blank — omit the key entirely (Google accepts this)
+    payload.update(_build_how_heard_fields(data.get("how_heard", ""), GFORM_HOW_HEARD))
 
     try:
         async with httpx.AsyncClient(follow_redirects=True) as client:
             r = await client.post(
-                GFORM_URL,
-                data=payload,
+                GFORM_URL, data=payload,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
                 timeout=8,
             )
         if r.status_code not in (200, 201, 302):
             print(f"[GFORM] Unexpected status {r.status_code}")
         else:
-            print(f"[GFORM] Submitted OK for {data.get('email','?')}")
+            print(f"[GFORM] Access request submitted for {data.get('email','?')}")
     except Exception as exc:
         print(f"[GFORM] Error: {type(exc).__name__}: {exc}")
 
 
+async def _submit_support_form(email: str, query: str) -> None:
+    """Submit to the support Google Form. Fire-and-forget."""
+    if not GFORM_SUPPORT_URL:
+        print(f"[SUPPORT] Not configured. email={email}")
+        return
+    try:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            r = await client.post(
+                GFORM_SUPPORT_URL,
+                data={
+                    GFORM_SUPPORT_EMAIL: email,
+                    GFORM_SUPPORT_QUERY: query,
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=8,
+            )
+        if r.status_code not in (200, 201, 302):
+            print(f"[SUPPORT] Unexpected status {r.status_code}")
+        else:
+            print(f"[SUPPORT] Query submitted from {email}")
+    except Exception as exc:
+        print(f"[SUPPORT] Error: {type(exc).__name__}: {exc}")
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
-# ROUTES
+# ROUTES — STATIC
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
     return HTMLResponse((static_dir / "index.html").read_text(encoding="utf-8"))
-
 
 @app.get("/api/frameworks")
 async def list_frameworks():
@@ -203,21 +237,25 @@ async def list_frameworks():
         for fid, meta in FRAMEWORK_META.items()
     ]
 
-
 @app.get("/api/health")
 async def health():
     return {
-        "status":           "ok",
-        "version":          "8.0.0",
-        "mode":             "form-gated trial",
-        "gform_configured": bool(GFORM_URL),
-        "frameworks":       list(FRAMEWORK_META.keys()),
+        "status":              "ok",
+        "version":             "9.0.0",
+        "mode":                "token-gated trial",
+        "gform_configured":    bool(GFORM_URL),
+        "support_configured":  bool(GFORM_SUPPORT_URL),
+        "active_tokens":       len(access_hashes),
+        "frameworks":          list(FRAMEWORK_META.keys()),
     }
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# ROUTES — UPLOAD
+# ═══════════════════════════════════════════════════════════════════════════════
+
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...), frameworks: str = Form(...)):
-    """Accept file, return redacted preview + upload token."""
     filename = file.filename or ""
     if not filename.endswith((".json", ".yaml", ".yml")):
         raise HTTPException(400, "Only .json, .yaml, or .yml files are accepted.")
@@ -244,8 +282,12 @@ async def upload(file: UploadFile = File(...), frameworks: str = Form(...)):
     }
 
 
-@app.post("/api/unlock")
-async def unlock(
+# ═══════════════════════════════════════════════════════════════════════════════
+# ROUTES — REQUEST ACCESS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/request-access")
+async def request_access(
     upload_token: str = Form(...),
     name:         str = Form(...),
     email:        str = Form(...),
@@ -253,10 +295,12 @@ async def unlock(
     role:         str = Form(""),
     how_heard:    str = Form(""),
     use_case:     str = Form(""),
+    access_token: str = Form(...),   # generated by browser, sent here + to Google
 ):
     """
-    Validate form, log to Google Forms, return full changelog + download token.
-    This is the only gate — no access token, no admin step.
+    Register sha256(access_token) and submit to Google Form.
+    The raw token is never stored — only the hash.
+    Team sees the raw token in Google Sheet and sends it to the user.
     """
     entry = pending_uploads.get(upload_token)
     if not entry:
@@ -268,11 +312,22 @@ async def unlock(
         raise HTTPException(400, "Name is required.")
     if not email or "@" not in email:
         raise HTTPException(400, "A valid email address is required.")
+    if not access_token or len(access_token) < 8:
+        raise HTTPException(400, "Invalid access token — please refresh and try again.")
+
+    # Store the hash — raw token never persisted
+    token_hash = _hash_token(access_token)
+    access_hashes[token_hash] = {
+        "email":      email,
+        "name":       name,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "use_count":  0,
+    }
 
     changelog = entry["changelog"]
 
-    # Log to Google Forms — fire and forget
-    await _submit_to_gform({
+    # Submit to Google Form — includes the raw token so team can send it
+    await _submit_access_form({
         "timestamp":       datetime.now(timezone.utc).isoformat(),
         "name":            name,
         "email":           email,
@@ -284,22 +339,87 @@ async def unlock(
         "frameworks":      ", ".join(entry["frameworks"]),
         "total_changes":   changelog.get("total_changes", 0),
         "format":          entry.get("format", ""),
+        "token":           access_token,   # raw — goes to Sheet for team to send
     })
 
-    # Issue single-use download token
+    return {
+        "ok":      True,
+        "message": "Request received. Our team will review and send your access token shortly.",
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ROUTES — REDEEM TOKEN
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/redeem")
+async def redeem_token(
+    access_token: str = Form(...),
+    upload_token: str = Form(...),
+):
+    """
+    Hash the submitted token and compare against stored hashes.
+    No plaintext comparison — raw tokens never leave the client or the Sheet.
+    """
+    token_hash = _hash_token(access_token)
+
+    hash_entry = access_hashes.get(token_hash)
+    if not hash_entry:
+        raise HTTPException(
+            404,
+            "Invalid or unrecognised access token. "
+            "Check for typos or request a new token.",
+        )
+
+    upload_entry = pending_uploads.get(upload_token)
+    if not upload_entry:
+        raise HTTPException(
+            410,
+            "Your file session has expired — please re-upload your file and try again.",
+        )
+
+    # Track usage
+    hash_entry["use_count"] += 1
+    hash_entry["last_used"]  = datetime.now(timezone.utc).isoformat()
+
+    # Issue fresh single-use download token
     dl_token = secrets.token_urlsafe(32)
-    download_tokens[dl_token] = entry
+    download_tokens[dl_token] = upload_entry
 
     return {
         "ok":             True,
         "download_token": dl_token,
-        "changelog":      changelog,   # full, unredacted
+        "changelog":      upload_entry["changelog"],
     }
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# ROUTES — SUPPORT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/support")
+async def support(
+    email: str = Form(...),
+    query: str = Form(...),
+):
+    """Submit a support query to the support Google Form."""
+    email = email.strip().lower()
+    query = query.strip()
+    if not email or "@" not in email:
+        raise HTTPException(400, "A valid email address is required.")
+    if not query:
+        raise HTTPException(400, "Query cannot be empty.")
+
+    await _submit_support_form(email, query)
+    return {"ok": True, "message": "Query submitted. We'll be in touch shortly."}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ROUTES — DOWNLOAD
+# ═══════════════════════════════════════════════════════════════════════════════
+
 @app.get("/api/download/{download_token}")
 async def download(download_token: str):
-    """Transform and stream the fixed ZIP. One-time use."""
     entry = download_tokens.pop(download_token, None)
     if not entry:
         raise HTTPException(404, "Download token not found or already used.")
